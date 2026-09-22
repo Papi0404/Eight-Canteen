@@ -1,16 +1,7 @@
-<<<<<<< HEAD
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.EightCanteen" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
     </style>
 
     <style name="Theme.EightCanteen" parent="Base.Theme.EightCanteen" />
-=======
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-
-    <style name="Theme.EightCanteen" parent="android:Theme.Material.Light.NoActionBar" />
->>>>>>> 15b11ca14dea663e57e94309df28fb3377fb9bfe
 </resources>
