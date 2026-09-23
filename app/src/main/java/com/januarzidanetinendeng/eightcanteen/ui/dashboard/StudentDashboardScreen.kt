@@ -52,11 +52,15 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.januarzidanetinendeng.eightcanteen.ui.checkout.CartItem
+import com.januarzidanetinendeng.eightcanteen.ui.checkout.CartViewModel
+import com.januarzidanetinendeng.eightcanteen.ui.checkout.FoodImageType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -104,6 +108,7 @@ data class MenuItem(
 
 @Composable
 fun StudentDashboardScreen(
+    cartViewModel: CartViewModel = remember { CartViewModel() },
     studentName: String = "Dimas Pratama",
     studentClass: String = "XII RPL 2 • SMKN 8",
     loyaltyPoints: Int = 25,
@@ -116,9 +121,11 @@ fun StudentDashboardScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf("Semua") }
-    var cartCount by remember { mutableIntStateOf(1) }
-    var cartTotal by remember { mutableIntStateOf(15000) }
     var selectedNavTab by remember { mutableIntStateOf(0) }
+
+    val cartUiState by cartViewModel.uiState.collectAsState()
+    val cartCount = cartUiState.totalMenuCount
+    val cartTotal = cartUiState.subtotal
 
     val stands = listOf(
         StandItem("1", "Kebab Bang Ali", "4.9", "50m • Buka", false, "🥙"),
@@ -641,8 +648,25 @@ fun StudentDashboardScreen(
 
                                         Button(
                                             onClick = {
-                                                cartCount++
-                                                cartTotal += menu.price
+                                                val foodType = when (menu.id) {
+                                                    "m1" -> FoodImageType.KEBAB
+                                                    "m2" -> FoodImageType.KETOPRAK
+                                                    "m3" -> FoodImageType.AYAM_GEPREK
+                                                    "m4" -> FoodImageType.DIMSUM
+                                                    "m5" -> FoodImageType.ES_KOPI
+                                                    else -> FoodImageType.GENERIC
+                                                }
+                                                cartViewModel.addToCart(
+                                                    CartItem(
+                                                        id = menu.id,
+                                                        name = menu.name,
+                                                        price = menu.price,
+                                                        quantity = 1,
+                                                        standName = menu.standName,
+                                                        imageType = foodType,
+                                                        foodEmoji = menu.foodEmoji
+                                                    )
+                                                )
                                                 Toast.makeText(context, "${menu.name} ditambahkan ke keranjang!", Toast.LENGTH_SHORT).show()
                                             },
                                             shape = RoundedCornerShape(16.dp),

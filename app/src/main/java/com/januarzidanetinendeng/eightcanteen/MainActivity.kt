@@ -13,6 +13,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.januarzidanetinendeng.eightcanteen.ui.admin.AdminAddStandScreen
 import com.januarzidanetinendeng.eightcanteen.ui.admin.AdminDashboardScreen
+import com.januarzidanetinendeng.eightcanteen.ui.checkout.CartViewModel
+import com.januarzidanetinendeng.eightcanteen.ui.checkout.CheckoutScreen
 import com.januarzidanetinendeng.eightcanteen.ui.dashboard.StudentDashboardScreen
 import com.januarzidanetinendeng.eightcanteen.ui.login.LoginScreen
 import com.januarzidanetinendeng.eightcanteen.ui.otp.OtpVerificationScreen
@@ -30,6 +32,7 @@ enum class ScreenState {
     ADMIN_ADD_STAND,
     HOME_LOGGED_IN,
     POINTS_REWARD,
+    CHECKOUT,
     SELLER_DASHBOARD,
     ADMIN_DASHBOARD
 }
@@ -55,6 +58,9 @@ fun MainAppNavigation() {
     var accountRoleOrClass by remember { mutableStateOf("XII RPL 2 • SMKN 8") }
     var sellerStandName by remember { mutableStateOf("Kebab Bang Ali") }
     var sellerCounterSlot by remember { mutableStateOf("Stand 04") }
+
+    // Shared CartViewModel (Single Source of Truth)
+    val cartViewModel: CartViewModel = remember { CartViewModel() }
 
     when (currentScreen) {
         ScreenState.LOGIN -> {
@@ -131,6 +137,7 @@ fun MainAppNavigation() {
         ScreenState.HOME_LOGGED_IN -> {
             // Full Student Dashboard Screen View
             StudentDashboardScreen(
+                cartViewModel = cartViewModel,
                 studentName = accountName,
                 studentClass = accountRoleOrClass,
                 loyaltyPoints = 25,
@@ -141,7 +148,22 @@ fun MainAppNavigation() {
                     currentScreen = ScreenState.ADMIN_DASHBOARD
                 },
                 onCheckoutClick = {
-                    Toast.makeText(context, "Membuka Halaman Checkout Pre-Order E-Kantin...", Toast.LENGTH_SHORT).show()
+                    currentScreen = ScreenState.CHECKOUT
+                }
+            )
+        }
+
+        ScreenState.CHECKOUT -> {
+            // E-Kantin Checkout Screen
+            CheckoutScreen(
+                viewModel = cartViewModel,
+                onBackClick = {
+                    currentScreen = ScreenState.HOME_LOGGED_IN
+                },
+                onPaymentComplete = {
+                    cartViewModel.clearCart()
+                    Toast.makeText(context, "Pesanan E-Kantin berhasil dibayar! Menampilkan status antrean.", Toast.LENGTH_SHORT).show()
+                    currentScreen = ScreenState.HOME_LOGGED_IN
                 }
             )
         }
