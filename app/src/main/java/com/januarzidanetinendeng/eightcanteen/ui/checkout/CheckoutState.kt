@@ -10,53 +10,55 @@ enum class FoodImageType {
     GENERIC
 }
 
+enum class PaymentMethod {
+    QRIS,
+    CASH
+}
+
+typealias PaymentMethodType = PaymentMethod
+
 data class CartItem(
     val id: String,
     val name: String,
-    val price: Int,
+    val price: Double,
     val quantity: Int = 1,
     val standName: String = "Stand 04",
+    val imageUrl: String = "",
     val imageType: FoodImageType = FoodImageType.GENERIC,
     val foodEmoji: String = "🍱"
 )
 
-enum class PaymentMethodType {
-    QRIS_AUTOMATIC,
-    CASH_AT_STAND
-}
-
 data class CheckoutUiState(
     val timeSlotTitle: String = "Istirahat 1 (10:15 – 10:30 WIB)",
-    val standInfo: String = "Stand 04 • Kebab & Burger Bang Ali",
+    val standInfo: String = "Stand 04 • Kebab Bang Ali",
     val cartItems: List<CartItem> = emptyList(),
     val orderNote: String = "Mayones dipisah, jeruk es sedikit.",
     val userPoints: Int = 50,
     val redeemPointsCost: Int = 5,
-    val discountAmount: Int = 2500,
+    val discountAmount: Double = 2500.0,
     val isPointsDiscountEnabled: Boolean = true,
-    val serviceFee: Int = 0,
-    val selectedPaymentMethod: PaymentMethodType = PaymentMethodType.QRIS_AUTOMATIC,
+    val serviceFee: Double = 0.0,
+    val selectedPaymentMethod: PaymentMethod = PaymentMethod.QRIS,
     val isPaymentSuccess: Boolean = false
 ) {
     val totalMenuCount: Int
         get() = cartItems.sumOf { it.quantity }
 
-    val subtotal: Int
+    val subtotal: Double
         get() = cartItems.sumOf { it.price * it.quantity }
 
-    val actualDiscount: Int
-        get() = if (isPointsDiscountEnabled && cartItems.isNotEmpty()) discountAmount else 0
+    val actualDiscount: Double
+        get() = if (isPointsDiscountEnabled && cartItems.isNotEmpty()) discountAmount else 0.0
 
-    val totalPayment: Int
-        get() = (subtotal + serviceFee - actualDiscount).coerceAtLeast(0)
+    val totalPayment: Double
+        get() = (subtotal + serviceFee - actualDiscount).coerceAtLeast(0.0)
 
-    // Property totalBill alias untuk compatibility
-    val totalBill: Int
+    val totalBill: Double
         get() = totalPayment
 
     val selectedPaymentMethodName: String
         get() = when (selectedPaymentMethod) {
-            PaymentMethodType.QRIS_AUTOMATIC -> "QRIS Otomatis"
-            PaymentMethodType.CASH_AT_STAND -> "Cash di Stand"
+            PaymentMethod.QRIS -> "QRIS Otomatis"
+            PaymentMethod.CASH -> "Cash di Stand"
         }
 }

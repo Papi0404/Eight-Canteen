@@ -71,6 +71,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.januarzidanetinendeng.eightcanteen.ui.checkout.formatRupiah
 import com.januarzidanetinendeng.eightcanteen.ui.components.EKantinLogoIcon
 import com.januarzidanetinendeng.eightcanteen.ui.theme.BlueChipBg
 import com.januarzidanetinendeng.eightcanteen.ui.theme.BlueLightBg
@@ -660,7 +661,7 @@ fun StudentDashboardScreen(
                                                     CartItem(
                                                         id = menu.id,
                                                         name = menu.name,
-                                                        price = menu.price,
+                                                        price = menu.price.toDouble(),
                                                         quantity = 1,
                                                         standName = menu.standName,
                                                         imageType = foodType,
@@ -737,7 +738,7 @@ fun StudentDashboardScreen(
 
                             Column {
                                 Text(text = "$cartCount Item di Keranjang", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                Text(text = "Rp ${String.format(Locale.GERMANY, "%,d", cartTotal)}", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                                Text(text = "Rp ${formatRupiah(cartTotal)}", fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
                             }
                         }
 

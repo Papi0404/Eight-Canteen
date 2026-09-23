@@ -82,15 +82,19 @@ import com.januarzidanetinendeng.eightcanteen.ui.theme.EightCanteenTheme
 import java.text.NumberFormat
 import java.util.Locale
 
-fun formatRupiah(amount: Int): String {
+fun formatRupiah(amount: Double): String {
     val formatter = NumberFormat.getIntegerInstance(Locale("id", "ID"))
-    return formatter.format(amount)
+    return formatter.format(amount.toLong())
 }
+
+fun formatRupiah(amount: Int): String = formatRupiah(amount.toDouble())
 
 @Composable
 fun CheckoutScreen(
-    viewModel: CheckoutViewModel = remember { CheckoutViewModel() },
+    viewModel: CartViewModel = remember { CartViewModel() },
     onBackClick: () -> Unit = {},
+    onNavigateToQris: () -> Unit = {},
+    onNavigateToCash: () -> Unit = {},
     onPaymentComplete: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -117,8 +121,11 @@ fun CheckoutScreen(
                 totalBill = state.totalBill,
                 selectedMethodName = state.selectedPaymentMethodName,
                 onPayClick = {
-                    viewModel.processPayment()
-                    showSuccessDialog = true
+                    if (state.selectedPaymentMethod == PaymentMethod.QRIS) {
+                        onNavigateToQris()
+                    } else {
+                        onNavigateToCash()
+                    }
                 }
             )
         },
@@ -762,7 +769,7 @@ private fun OrderItemRow(
 private fun PointsRewardToggleCard(
     userPoints: Int,
     redeemPointsCost: Int,
-    discountAmount: Int,
+    discountAmount: Double,
     isEnabled: Boolean,
     onToggleChange: (Boolean) -> Unit
 ) {
@@ -901,11 +908,11 @@ private fun PaymentMethodSelectionCard(
         }
 
         // Option 1: QRIS Verifikasi Otomatis
-        val isQrisSelected = selectedMethod == PaymentMethodType.QRIS_AUTOMATIC
+        val isQrisSelected = selectedMethod == PaymentMethod.QRIS
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onMethodSelected(PaymentMethodType.QRIS_AUTOMATIC) },
+                .clickable { onMethodSelected(PaymentMethod.QRIS) },
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             border = if (isQrisSelected) BorderStroke(1.5.dp, Color(0xFF0052CC)) else BorderStroke(1.dp, Color(0xFFE2E8F0)),
@@ -1031,11 +1038,11 @@ private fun PaymentMethodSelectionCard(
         }
 
         // Option 2: Tunai / Cash di Stand
-        val isCashSelected = selectedMethod == PaymentMethodType.CASH_AT_STAND
+        val isCashSelected = selectedMethod == PaymentMethod.CASH
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onMethodSelected(PaymentMethodType.CASH_AT_STAND) },
+                .clickable { onMethodSelected(PaymentMethod.CASH) },
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             border = if (isCashSelected) BorderStroke(1.5.dp, Color(0xFF0052CC)) else BorderStroke(1.dp, Color(0xFFE2E8F0)),
@@ -1168,12 +1175,12 @@ private fun SelectionRadioCircle(isSelected: Boolean) {
 // -----------------------------------------------------------------------------
 @Composable
 private fun PaymentSummaryCard(
-    subtotal: Int,
+    subtotal: Double,
     menuCount: Int,
-    serviceFee: Int,
-    discountAmount: Int,
+    serviceFee: Double,
+    discountAmount: Double,
     isDiscountActive: Boolean,
-    totalBill: Int
+    totalBill: Double
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1236,7 +1243,7 @@ private fun PaymentSummaryCard(
                     )
                 }
                 Text(
-                    text = if (serviceFee == 0) "GRATIS (Rp 0)" else "Rp ${formatRupiah(serviceFee)}",
+                    text = if (serviceFee == 0.0) "GRATIS (Rp 0)" else "Rp ${formatRupiah(serviceFee)}",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF0052CC)
@@ -1309,7 +1316,7 @@ private fun PaymentSummaryCard(
 // -----------------------------------------------------------------------------
 @Composable
 private fun CheckoutBottomBar(
-    totalBill: Int,
+    totalBill: Double,
     selectedMethodName: String,
     onPayClick: () -> Unit
 ) {

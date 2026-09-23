@@ -18,6 +18,9 @@ import com.januarzidanetinendeng.eightcanteen.ui.checkout.CheckoutScreen
 import com.januarzidanetinendeng.eightcanteen.ui.dashboard.StudentDashboardScreen
 import com.januarzidanetinendeng.eightcanteen.ui.login.LoginScreen
 import com.januarzidanetinendeng.eightcanteen.ui.otp.OtpVerificationScreen
+import com.januarzidanetinendeng.eightcanteen.ui.payment.PayAtCounterScreen
+import com.januarzidanetinendeng.eightcanteen.ui.payment.QrisPaymentScreen
+import com.januarzidanetinendeng.eightcanteen.ui.payment.StrukLunasScreen
 import com.januarzidanetinendeng.eightcanteen.ui.points.PointsRewardScreen
 import com.januarzidanetinendeng.eightcanteen.ui.register.StudentRegisterScreen
 import com.januarzidanetinendeng.eightcanteen.ui.seller.SellerDashboardScreen
@@ -25,16 +28,19 @@ import com.januarzidanetinendeng.eightcanteen.ui.stand.StandRegisterScreen
 import com.januarzidanetinendeng.eightcanteen.ui.theme.EightCanteenTheme
 
 enum class ScreenState {
-    LOGIN,
-    OTP_VERIFICATION,
-    STUDENT_REGISTER,
-    STAND_REGISTER,
-    ADMIN_ADD_STAND,
-    HOME_LOGGED_IN,
-    POINTS_REWARD,
-    CHECKOUT,
-    SELLER_DASHBOARD,
-    ADMIN_DASHBOARD
+    LOGIN,               // Halaman 1: Login
+    OTP_VERIFICATION,    // Halaman 2: Verifikasi OTP
+    STUDENT_REGISTER,    // Halaman 3: Registrasi Siswa
+    HOME_LOGGED_IN,      // Beranda / Dashboard Utama
+    CHECKOUT,            // Checkout Pesanan
+    QRIS_PAYMENT,        // Pembayaran QRIS Dinamis
+    PAY_AT_COUNTER,      // Pembayaran Cash / Loket Stand
+    STRUK_LUNAS,         // Struk Lunas & Barcode Pickup
+    POINTS_REWARD,       // Hadiah & Poin Kantin
+    STAND_REGISTER,      // Pendaftaran Stand Baru
+    ADMIN_ADD_STAND,     // Admin Tambah Stand
+    SELLER_DASHBOARD,    // Dashboard Penjual Stand
+    ADMIN_DASHBOARD      // Dashboard Admin
 }
 
 class MainActivity : ComponentActivity() {
@@ -52,17 +58,24 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainAppNavigation() {
     val context = LocalContext.current
+
+    // Start Destination diatur ke Halaman 1 (LOGIN)
     var currentScreen by remember { mutableStateOf(ScreenState.LOGIN) }
+
+    // State data pengguna terautentikasi
     var userPhoneNumber by remember { mutableStateOf("812-3456-7890") }
     var accountName by remember { mutableStateOf("Dimas Pratama") }
     var accountRoleOrClass by remember { mutableStateOf("XII RPL 2 • SMKN 8") }
     var sellerStandName by remember { mutableStateOf("Kebab Bang Ali") }
     var sellerCounterSlot by remember { mutableStateOf("Stand 04") }
 
-    // Shared CartViewModel (Single Source of Truth)
+    // Shared CartViewModel (Single Source of Truth terikat di tingkat NavHost)
     val cartViewModel: CartViewModel = remember { CartViewModel() }
 
     when (currentScreen) {
+        // ---------------------------------------------------------------------
+        // HALAMAN 1: LOGIN (Nomor HP & WhatsApp OTP)
+        // ---------------------------------------------------------------------
         ScreenState.LOGIN -> {
             LoginScreen(
                 initialPhoneNumber = userPhoneNumber,
@@ -74,68 +87,52 @@ fun MainAppNavigation() {
                 },
                 onRequestOtpSuccess = { phone ->
                     userPhoneNumber = if (phone.isNotBlank()) phone else "812-3456-7890"
-                    currentScreen = ScreenState.OTP_VERIFICATION
+                    currentScreen = ScreenState.OTP_VERIFICATION // Lanjut ke Halaman 2
                 }
             )
         }
 
+        // ---------------------------------------------------------------------
+        // HALAMAN 2: VERIFIKASI OTP
+        // ---------------------------------------------------------------------
         ScreenState.OTP_VERIFICATION -> {
             OtpVerificationScreen(
                 phoneNumber = userPhoneNumber,
                 onBackClick = {
-                    currentScreen = ScreenState.LOGIN
+                    currentScreen = ScreenState.LOGIN // Kembali ke Halaman 1
                 },
                 onEditPhoneClick = {
                     currentScreen = ScreenState.LOGIN
                 },
-                onVerificationSuccess = { otp ->
-                    currentScreen = ScreenState.STUDENT_REGISTER
+                onVerificationSuccess = { _ ->
+                    currentScreen = ScreenState.STUDENT_REGISTER // Lanjut ke Halaman 3
                 }
             )
         }
 
+        // ---------------------------------------------------------------------
+        // HALAMAN 3: REGISTRASI DATA SISWA & KELAS
+        // ---------------------------------------------------------------------
         ScreenState.STUDENT_REGISTER -> {
             StudentRegisterScreen(
                 verifiedPhoneNumber = userPhoneNumber,
                 onBackClick = {
-                    currentScreen = ScreenState.OTP_VERIFICATION
+                    currentScreen = ScreenState.OTP_VERIFICATION // Kembali ke Halaman 2
                 },
                 onRegisterSuccess = { name, className ->
                     accountName = name
                     accountRoleOrClass = className
+                    // Transitions to Beranda and pops authentication stack from BackHistory
                     currentScreen = ScreenState.HOME_LOGGED_IN
+                    Toast.makeText(context, "Selamat datang, $name!", Toast.LENGTH_SHORT).show()
                 }
             )
         }
 
-        ScreenState.STAND_REGISTER -> {
-            StandRegisterScreen(
-                onBackClick = {
-                    currentScreen = ScreenState.LOGIN
-                },
-                onRegisterSuccess = { stand, owner ->
-                    sellerStandName = stand
-                    sellerCounterSlot = "Stand 04"
-                    currentScreen = ScreenState.SELLER_DASHBOARD
-                }
-            )
-        }
-
-        ScreenState.ADMIN_ADD_STAND -> {
-            AdminAddStandScreen(
-                onBackClick = {
-                    currentScreen = ScreenState.ADMIN_DASHBOARD
-                },
-                onAddStandSuccess = { stand, owner ->
-                    sellerStandName = stand
-                    sellerCounterSlot = "Stand 01"
-                    currentScreen = ScreenState.SELLER_DASHBOARD
-                }
-            )
-        }
-
+        // ---------------------------------------------------------------------
+        // BERANDA / DASHBOARD UTAMA ("beranda")
+        // ---------------------------------------------------------------------
         ScreenState.HOME_LOGGED_IN -> {
-            // Full Student Dashboard Screen View
             StudentDashboardScreen(
                 cartViewModel = cartViewModel,
                 studentName = accountName,
@@ -153,23 +150,79 @@ fun MainAppNavigation() {
             )
         }
 
+        // ---------------------------------------------------------------------
+        // CHECKOUT SCREEN ("checkout")
+        // ---------------------------------------------------------------------
         ScreenState.CHECKOUT -> {
-            // E-Kantin Checkout Screen
             CheckoutScreen(
                 viewModel = cartViewModel,
                 onBackClick = {
                     currentScreen = ScreenState.HOME_LOGGED_IN
                 },
+                onNavigateToQris = {
+                    currentScreen = ScreenState.QRIS_PAYMENT
+                },
+                onNavigateToCash = {
+                    currentScreen = ScreenState.PAY_AT_COUNTER
+                },
                 onPaymentComplete = {
-                    cartViewModel.clearCart()
-                    Toast.makeText(context, "Pesanan E-Kantin berhasil dibayar! Menampilkan status antrean.", Toast.LENGTH_SHORT).show()
+                    currentScreen = ScreenState.STRUK_LUNAS
+                }
+            )
+        }
+
+        // ---------------------------------------------------------------------
+        // LAYAR PEMBAYARAN QRIS ("qris_payment")
+        // ---------------------------------------------------------------------
+        ScreenState.QRIS_PAYMENT -> {
+            QrisPaymentScreen(
+                viewModel = cartViewModel,
+                onBackClick = {
+                    currentScreen = ScreenState.CHECKOUT
+                },
+                onPaymentSuccess = {
+                    currentScreen = ScreenState.STRUK_LUNAS
+                }
+            )
+        }
+
+        // ---------------------------------------------------------------------
+        // LAYAR PEMBAYARAN CASH DI LOKET ("pay_at_counter")
+        // ---------------------------------------------------------------------
+        ScreenState.PAY_AT_COUNTER -> {
+            PayAtCounterScreen(
+                viewModel = cartViewModel,
+                onBackClick = {
+                    currentScreen = ScreenState.CHECKOUT
+                },
+                onConfirmCashPayment = {
+                    currentScreen = ScreenState.STRUK_LUNAS
+                },
+                onCancelOrder = {
                     currentScreen = ScreenState.HOME_LOGGED_IN
                 }
             )
         }
 
+        // ---------------------------------------------------------------------
+        // STRUK LUNAS & BARCODE PICKUP ("struk_lunas")
+        // ---------------------------------------------------------------------
+        ScreenState.STRUK_LUNAS -> {
+            StrukLunasScreen(
+                viewModel = cartViewModel,
+                onBackClick = {
+                    currentScreen = ScreenState.HOME_LOGGED_IN
+                },
+                onBackToHome = {
+                    currentScreen = ScreenState.HOME_LOGGED_IN
+                }
+            )
+        }
+
+        // ---------------------------------------------------------------------
+        // HADIAH & POIN KANTIN
+        // ---------------------------------------------------------------------
         ScreenState.POINTS_REWARD -> {
-            // Points & Rewards Screen
             PointsRewardScreen(
                 studentName = accountName,
                 studentClass = accountRoleOrClass.take(12),
@@ -186,8 +239,10 @@ fun MainAppNavigation() {
             )
         }
 
+        // ---------------------------------------------------------------------
+        // SELLER DASHBOARD (PENJUAL STAND)
+        // ---------------------------------------------------------------------
         ScreenState.SELLER_DASHBOARD -> {
-            // Full Seller Dashboard Screen View
             SellerDashboardScreen(
                 standName = sellerStandName,
                 counterSlot = sellerCounterSlot,
@@ -209,13 +264,44 @@ fun MainAppNavigation() {
             )
         }
 
+        // ---------------------------------------------------------------------
+        // ADMIN DASHBOARD
+        // ---------------------------------------------------------------------
         ScreenState.ADMIN_DASHBOARD -> {
-            // Full Admin Dashboard Screen View
             AdminDashboardScreen(
                 onNavigateToHome = {
                     currentScreen = ScreenState.HOME_LOGGED_IN
                 },
                 onNavigateToStand = {
+                    currentScreen = ScreenState.SELLER_DASHBOARD
+                }
+            )
+        }
+
+        // ---------------------------------------------------------------------
+        // STAND REGISTER / ADMIN ADD STAND
+        // ---------------------------------------------------------------------
+        ScreenState.STAND_REGISTER -> {
+            StandRegisterScreen(
+                onBackClick = {
+                    currentScreen = ScreenState.LOGIN
+                },
+                onRegisterSuccess = { stand, owner ->
+                    sellerStandName = stand
+                    sellerCounterSlot = "Stand 04"
+                    currentScreen = ScreenState.SELLER_DASHBOARD
+                }
+            )
+        }
+
+        ScreenState.ADMIN_ADD_STAND -> {
+            AdminAddStandScreen(
+                onBackClick = {
+                    currentScreen = ScreenState.ADMIN_DASHBOARD
+                },
+                onAddStandSuccess = { stand, owner ->
+                    sellerStandName = stand
+                    sellerCounterSlot = "Stand 01"
                     currentScreen = ScreenState.SELLER_DASHBOARD
                 }
             )

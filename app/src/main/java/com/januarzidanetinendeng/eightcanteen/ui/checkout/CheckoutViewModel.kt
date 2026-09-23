@@ -10,75 +10,53 @@ class CartViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(
         CheckoutUiState(
-            // Pre-populated default items so cart is ready or can be updated from Beranda
-            cartItems = listOf(
-                CartItem(
-                    id = "m1",
-                    name = "Kebab Beef Jumbo",
-                    price = 15000,
-                    quantity = 1,
-                    standName = "Stand 04",
-                    imageType = FoodImageType.KEBAB,
-                    foodEmoji = "🥙"
-                ),
-                CartItem(
-                    id = "m2",
-                    name = "Ketoprak Telur Spesial",
-                    price = 14000,
-                    quantity = 1,
-                    standName = "Ketoprak Bu Joko",
-                    imageType = FoodImageType.KETOPRAK,
-                    foodEmoji = "🍲"
-                ),
-                CartItem(
-                    id = "m3",
-                    name = "Ayam Sambal Matah",
-                    price = 16000,
-                    quantity = 1,
-                    standName = "Ayam Geprek 8",
-                    imageType = FoodImageType.AYAM_GEPREK,
-                    foodEmoji = "🍗"
-                ),
-                CartItem(
-                    id = "m5",
-                    name = "Es Kopi Susu Aren 8",
-                    price = 10000,
-                    quantity = 1,
-                    standName = "Official Barista 8",
-                    imageType = FoodImageType.ES_KOPI,
-                    foodEmoji = "🧋"
-                )
-            )
+            cartItems = emptyList()
         )
     )
     val uiState: StateFlow<CheckoutUiState> = _uiState.asStateFlow()
 
+    val cartItems: List<CartItem>
+        get() = _uiState.value.cartItems
+
+    val selectedPaymentMethod: PaymentMethod
+        get() = _uiState.value.selectedPaymentMethod
+
+    val subtotal: Double
+        get() = _uiState.value.subtotal
+
+    val discount: Double
+        get() = _uiState.value.actualDiscount
+
+    val totalPayment: Double
+        get() = _uiState.value.totalPayment
+
     fun addToCart(item: CartItem) {
         _uiState.update { currentState ->
-            val existingItemIndex = currentState.cartItems.indexOfFirst { it.id == item.id }
-            val updatedList = if (existingItemIndex != -1) {
-                currentState.cartItems.mapIndexed { index, existingItem ->
-                    if (index == existingItemIndex) {
+            val safeCart = currentState.cartItems
+            val existingIndex = safeCart.indexOfFirst { it.id == item.id }
+            val updatedList = if (existingIndex != -1) {
+                safeCart.mapIndexed { index, existingItem ->
+                    if (index == existingIndex) {
                         existingItem.copy(quantity = existingItem.quantity + maxOf(1, item.quantity))
                     } else {
                         existingItem
                     }
                 }
             } else {
-                currentState.cartItems + item.copy(quantity = maxOf(1, item.quantity))
+                safeCart + item.copy(quantity = maxOf(1, item.quantity))
             }
             currentState.copy(cartItems = updatedList)
         }
     }
 
-    fun updateQuantity(itemId: String, delta: Int) {
+    fun updateQuantity(itemId: String, newQuantity: Int) {
         _uiState.update { currentState ->
-            val updatedList = currentState.cartItems.mapNotNull { item ->
-                if (item.id == itemId) {
-                    val newQty = item.quantity + delta
-                    if (newQty > 0) item.copy(quantity = newQty) else null
-                } else {
-                    item
+            val safeCart = currentState.cartItems
+            val updatedList = if (newQuantity <= 0) {
+                safeCart.filterNot { it.id == itemId }
+            } else {
+                safeCart.map { item ->
+                    if (item.id == itemId) item.copy(quantity = newQuantity) else item
                 }
             }
             currentState.copy(cartItems = updatedList)
@@ -86,24 +64,22 @@ class CartViewModel : ViewModel() {
     }
 
     fun updateItemQuantity(itemId: String, delta: Int) {
-        updateQuantity(itemId, delta)
+        val safeCart = _uiState.value.cartItems
+        val currentQty = safeCart.find { it.id == itemId }?.quantity ?: 0
+        updateQuantity(itemId, currentQty + delta)
     }
 
-    fun removeFromCart(itemId: String) {
+    fun setPaymentMethod(method: PaymentMethod) {
         _uiState.update { currentState ->
-            currentState.copy(cartItems = currentState.cartItems.filterNot { it.id == itemId })
+            currentState.copy(selectedPaymentMethod = method)
         }
     }
+
+    fun selectPaymentMethod(method: PaymentMethod) = setPaymentMethod(method)
 
     fun togglePointsDiscount(enabled: Boolean) {
         _uiState.update { currentState ->
             currentState.copy(isPointsDiscountEnabled = enabled)
-        }
-    }
-
-    fun selectPaymentMethod(method: PaymentMethodType) {
-        _uiState.update { currentState ->
-            currentState.copy(selectedPaymentMethod = method)
         }
     }
 
@@ -126,5 +102,4 @@ class CartViewModel : ViewModel() {
     }
 }
 
-// Alias for backwards compatibility
 typealias CheckoutViewModel = CartViewModel
