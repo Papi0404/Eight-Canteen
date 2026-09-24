@@ -58,6 +58,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.januarzidanetinendeng.eightcanteen.auth.UserRole
 import com.januarzidanetinendeng.eightcanteen.ui.checkout.CartItem
 import com.januarzidanetinendeng.eightcanteen.ui.checkout.CartViewModel
 import com.januarzidanetinendeng.eightcanteen.ui.checkout.FoodImageType
@@ -110,6 +111,7 @@ data class MenuItem(
 @Composable
 fun StudentDashboardScreen(
     cartViewModel: CartViewModel = remember { CartViewModel() },
+    userRole: UserRole = UserRole.STUDENT,
     studentName: String = "Dimas Pratama",
     studentClass: String = "XII RPL 2 • SMKN 8",
     loyaltyPoints: Int = 25,
@@ -243,16 +245,18 @@ fun StudentDashboardScreen(
                     label = { Text("Stand", fontSize = 11.sp) },
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = BluePrimary, selectedTextColor = BluePrimary, indicatorColor = BlueLightBg)
                 )
-                NavigationBarItem(
-                    selected = selectedNavTab == 3,
-                    onClick = {
-                        selectedNavTab = 3
-                        onNavigateToAdmin()
-                    },
-                    icon = { Icon(imageVector = Icons.Default.Widgets, contentDescription = "Admin") },
-                    label = { Text("Admin", fontSize = 11.sp) },
-                    colors = NavigationBarItemDefaults.colors(selectedIconColor = BluePrimary, selectedTextColor = BluePrimary, indicatorColor = BlueLightBg)
-                )
+                if (userRole == UserRole.ADMIN) {
+                    NavigationBarItem(
+                        selected = selectedNavTab == 3,
+                        onClick = {
+                            selectedNavTab = 3
+                            onNavigateToAdmin()
+                        },
+                        icon = { Icon(imageVector = Icons.Default.Widgets, contentDescription = "Admin") },
+                        label = { Text("Admin", fontSize = 11.sp) },
+                        colors = NavigationBarItemDefaults.colors(selectedIconColor = BluePrimary, selectedTextColor = BluePrimary, indicatorColor = BlueLightBg)
+                    )
+                }
             }
         }
     ) { innerPadding ->
