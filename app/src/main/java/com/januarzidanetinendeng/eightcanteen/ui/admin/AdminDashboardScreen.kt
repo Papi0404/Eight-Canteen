@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,20 +18,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.AddBusiness
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
@@ -100,24 +102,44 @@ data class ViolationCase(
     var isWarned: Boolean = false
 )
 
+data class PendingStand(
+    val id: String,
+    val ownerName: String,
+    val standName: String,
+    val category: String,
+    var isApproved: Boolean = false
+)
+
 @Composable
 fun AdminDashboardScreen(
-    onNavigateToHome: () -> Unit = {},
-    onNavigateToStand: () -> Unit = {}
+    onLogoutClick: () -> Unit = {},
+    onNavigateToAddStand: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val periodScrollState = rememberScrollState()
 
     var selectedPeriod by remember { mutableStateOf("Minggu Ini") }
-    var selectedNavTab by remember { mutableIntStateOf(3) } // Admin tab active
+    var selectedNavTab by remember { mutableIntStateOf(0) } // Beranda admin tab active
 
-    val standOmsetList = listOf(
-        StandOmset("C", "Stand C (Ayam Geprek 8)", 950000, 0.95f, BluePrimary),
-        StandOmset("A", "Stand A (Kebab Bang Ali)", 820000, 0.82f, BluePrimary),
-        StandOmset("B", "Stand B (Ketoprak Bu Joko)", 740000, 0.74f, BluePrimary),
-        StandOmset("D", "Stand D (Es & Aneka Jus)", 680000, 0.68f, Color(0xFFF97316)),
-        StandOmset("E", "Stand E (Snack & Pastry)", 650000, 0.65f, TextMuted)
-    )
+    val standOmsetList = remember {
+        listOf(
+            StandOmset("C", "Stand C (Ayam Geprek 8)", 950000, 0.95f, BluePrimary),
+            StandOmset("A", "Stand A (Kebab Bang Ali)", 820000, 0.82f, BluePrimary),
+            StandOmset("B", "Stand B (Ketoprak Bu Joko)", 740000, 0.74f, BluePrimary),
+            StandOmset("D", "Stand D (Es & Aneka Jus)", 680000, 0.68f, Color(0xFFF97316)),
+            StandOmset("E", "Stand E (Snack & Pastry)", 650000, 0.65f, TextMuted)
+        )
+    }
+
+    var pendingStands by remember {
+        mutableStateOf(
+            listOf(
+                PendingStand("ps1", "Ibu Siti", "Mie Ayam Manggarai", "Makanan Berat"),
+                PendingStand("ps2", "Kang Maman", "Cilok Kuah Pedas", "Cemilan")
+            )
+        )
+    }
 
     var payoutList by remember {
         mutableStateOf(
@@ -191,61 +213,45 @@ fun AdminDashboardScreen(
                         )
                     }
 
-                    // Profile Avatar
+                    // Logout Action
                     Box(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(BluePrimary)
-                            .clickable { },
+                            .background(Color(0xFFFEE2E2))
+                            .clickable { onLogoutClick() },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(imageVector = Icons.Default.Person, contentDescription = "Profile", tint = Color.White, modifier = Modifier.size(20.dp))
+                        Icon(imageVector = Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = Color(0xFFDC2626), modifier = Modifier.size(18.dp))
                     }
                 }
             }
         },
         bottomBar = {
-            // Bottom Navigation Bar
+            // Admin Exclusive Bottom Nav
             NavigationBar(
                 containerColor = Color.White,
                 tonalElevation = 8.dp
             ) {
                 NavigationBarItem(
                     selected = selectedNavTab == 0,
-                    onClick = {
-                        selectedNavTab = 0
-                        onNavigateToHome()
-                    },
-                    icon = { Icon(imageVector = Icons.Default.Storefront, contentDescription = "Beranda") },
-                    label = { Text("Beranda", fontSize = 11.sp) },
+                    onClick = { selectedNavTab = 0 },
+                    icon = { Icon(imageVector = Icons.Default.Widgets, contentDescription = "Dashboard") },
+                    label = { Text("Dashboard", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = BluePrimary, selectedTextColor = BluePrimary, indicatorColor = BlueLightBg)
                 )
                 NavigationBarItem(
                     selected = selectedNavTab == 1,
-                    onClick = {
-                        selectedNavTab = 1
-                        Toast.makeText(context, "Membuka Riwayat Semua Transaksi...", Toast.LENGTH_SHORT).show()
-                    },
-                    icon = { Icon(imageVector = Icons.AutoMirrored.Filled.ReceiptLong, contentDescription = "Pesanan") },
-                    label = { Text("Pesanan", fontSize = 11.sp) },
+                    onClick = { selectedNavTab = 1; Toast.makeText(context, "Membuka Persetujuan Mitra...", Toast.LENGTH_SHORT).show() },
+                    icon = { Icon(imageVector = Icons.Default.Group, contentDescription = "Persetujuan") },
+                    label = { Text("Approval", fontSize = 11.sp) },
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = BluePrimary, selectedTextColor = BluePrimary, indicatorColor = BlueLightBg)
                 )
                 NavigationBarItem(
                     selected = selectedNavTab == 2,
-                    onClick = {
-                        selectedNavTab = 2
-                        onNavigateToStand()
-                    },
-                    icon = { Icon(imageVector = Icons.Default.Storefront, contentDescription = "Stand") },
-                    label = { Text("Stand", fontSize = 11.sp) },
-                    colors = NavigationBarItemDefaults.colors(selectedIconColor = BluePrimary, selectedTextColor = BluePrimary, indicatorColor = BlueLightBg)
-                )
-                NavigationBarItem(
-                    selected = selectedNavTab == 3,
-                    onClick = { selectedNavTab = 3 },
-                    icon = { Icon(imageVector = Icons.Default.Widgets, contentDescription = "Admin") },
-                    label = { Text("Admin", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                    onClick = { selectedNavTab = 2; Toast.makeText(context, "Membuka Riwayat Keuangan...", Toast.LENGTH_SHORT).show() },
+                    icon = { Icon(imageVector = Icons.Default.MonetizationOn, contentDescription = "Pencairan") },
+                    label = { Text("Keuangan", fontSize = 11.sp) },
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = BluePrimary, selectedTextColor = BluePrimary, indicatorColor = BlueLightBg)
                 )
             }
@@ -310,11 +316,14 @@ fun AdminDashboardScreen(
             Spacer(modifier = Modifier.height(14.dp))
 
             // 2. Horizontal Date Filter Segmented Pills
-            val periodOptions = listOf("Hari Ini", "Kemarin", "Minggu Ini", "Bulan Ini")
-            LazyRow(
+            val periodOptions = remember { listOf("Hari Ini", "Kemarin", "Minggu Ini", "Bulan Ini") }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(periodScrollState),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(periodOptions) { period ->
+                periodOptions.forEach { period ->
                     val isSelected = selectedPeriod == period || (selectedPeriod == "Minggu Ini" && period.startsWith("Minggu"))
                     Box(
                         modifier = Modifier
@@ -414,6 +423,90 @@ fun AdminDashboardScreen(
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(text = "📈 +12% vs minggu lalu", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF16A34A))
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+            
+            // NEW: Tambah & Persetujuan Stand Section (Approval List)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = BlueLightBg),
+                border = BorderStroke(1.dp, BluePrimary.copy(alpha = 0.3f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(text = "Pendaftaran Stand Baru", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
+                            Text(text = "Menunggu verifikasi admin koperasi", fontSize = 11.sp, color = TextSecondary)
+                        }
+
+                        // Add Manual Button
+                        IconButton(
+                            onClick = { onNavigateToAddStand() },
+                            modifier = Modifier.size(36.dp).background(BluePrimary, CircleShape)
+                        ) {
+                            Icon(imageVector = Icons.Default.AddBusiness, contentDescription = "Add", tint = Color.White, modifier = Modifier.size(20.dp))
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    val unapprovedCount = pendingStands.count { !it.isApproved }
+                    if (unapprovedCount == 0) {
+                        Text(
+                            text = "Tidak ada pendaftaran stand baru saat ini.",
+                            fontSize = 12.sp,
+                            color = TextSecondary,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            pendingStands.forEachIndexed { index, ps ->
+                                if (!ps.isApproved) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(Color.White)
+                                            .border(1.dp, BorderColor, RoundedCornerShape(14.dp))
+                                            .padding(12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(text = ps.standName, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                            Text(text = "Oleh: ${ps.ownerName} • ${ps.category}", fontSize = 11.sp, color = TextSecondary)
+                                        }
+
+                                        Button(
+                                            onClick = {
+                                                val updated = pendingStands.toMutableList()
+                                                updated[index] = ps.copy(isApproved = true)
+                                                pendingStands = updated
+                                                Toast.makeText(context, "${ps.standName} Berhasil Di-ACC!", Toast.LENGTH_SHORT).show()
+                                            },
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                            modifier = Modifier.height(32.dp)
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(imageVector = Icons.Default.CheckCircle, contentDescription = "ACC", modifier = Modifier.size(14.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(text = "Setujui", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

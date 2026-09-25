@@ -1,0 +1,272 @@
+package com.januarzidanetinendeng.eightcanteen.ui.profile
+
+import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.januarzidanetinendeng.eightcanteen.ui.theme.BluePrimary
+import com.januarzidanetinendeng.eightcanteen.ui.theme.BorderColor
+import com.januarzidanetinendeng.eightcanteen.ui.theme.EightCanteenTheme
+import com.januarzidanetinendeng.eightcanteen.ui.theme.InputBg
+import com.januarzidanetinendeng.eightcanteen.ui.theme.ScreenBg
+import com.januarzidanetinendeng.eightcanteen.ui.theme.TextMuted
+import com.januarzidanetinendeng.eightcanteen.ui.theme.TextPrimary
+import com.januarzidanetinendeng.eightcanteen.ui.theme.TextSecondary
+
+@Composable
+fun ProfileScreen(
+    currentName: String = "Fajar Pratama",
+    currentClass: String = "XI RPL 2",
+    currentPhone: String = "81234567890",
+    onBackClick: () -> Unit = {},
+    onLogoutClick: () -> Unit = {},
+    onSaveSuccess: (String, String) -> Unit = { _, _ -> }
+) {
+    val context = LocalContext.current
+    val scrollState = rememberScrollState()
+
+    var nameInput by remember { mutableStateOf(currentName) }
+    var classInput by remember { mutableStateOf(currentClass) }
+    
+    Scaffold(
+        containerColor = ScreenBg,
+        topBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onBackClick,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .border(1.dp, BorderColor, CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Kembali",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Text(
+                        text = "Edit Profil Saya",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                }
+
+                IconButton(onClick = onLogoutClick) {
+                    Icon(imageVector = Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = Color(0xFFDC2626))
+                }
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(scrollState)
+                .padding(horizontal = 20.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Profile Picture Section
+            Box(
+                contentAlignment = Alignment.BottomEnd,
+                modifier = Modifier.padding(top = 10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFFEF3C7))
+                        .border(2.dp, BluePrimary, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "👨‍🎓", fontSize = 50.sp)
+                }
+
+                // Camera Icon Badge
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(BluePrimary)
+                        .border(2.dp, Color.White, CircleShape)
+                        .clickable { Toast.makeText(context, "Membuka Galeri...", Toast.LENGTH_SHORT).show() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CameraAlt,
+                        contentDescription = "Ganti Foto",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Text(
+                text = "Ketuk ikon kamera untuk mengganti foto profil",
+                fontSize = 11.sp,
+                color = TextSecondary
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, BorderColor)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    // Name Input
+                    Text(text = "Nama Lengkap", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = nameInput,
+                        onValueChange = { nameInput = it },
+                        singleLine = true,
+                        leadingIcon = { Icon(imageVector = Icons.Default.Person, contentDescription = "Name", tint = TextSecondary) },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = InputBg,
+                            unfocusedContainerColor = InputBg,
+                            focusedBorderColor = BluePrimary,
+                            unfocusedBorderColor = BorderColor
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Class Input
+                    Text(text = "Kelas / Jurusan", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = classInput,
+                        onValueChange = { classInput = it },
+                        singleLine = true,
+                        leadingIcon = { Icon(imageVector = Icons.Default.School, contentDescription = "Class", tint = TextSecondary) },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = InputBg,
+                            unfocusedContainerColor = InputBg,
+                            focusedBorderColor = BluePrimary,
+                            unfocusedBorderColor = BorderColor
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Phone (Read-Only)
+                    Text(text = "Nomor WhatsApp (Terkunci)", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextMuted)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = "+62 $currentPhone",
+                        onValueChange = { },
+                        readOnly = true,
+                        enabled = false,
+                        leadingIcon = { Icon(imageVector = Icons.Default.Phone, contentDescription = "Phone", tint = TextMuted) },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            disabledContainerColor = Color(0xFFF1F5F9),
+                            disabledBorderColor = BorderColor,
+                            disabledTextColor = TextMuted,
+                            disabledLeadingIconColor = TextMuted
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(text = "*Nomor WA tidak bisa diubah karena terhubung dengan database koperasi.", fontSize = 10.sp, color = TextMuted)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Save Button
+            Button(
+                onClick = {
+                    if (nameInput.isNotBlank() && classInput.isNotBlank()) {
+                        Toast.makeText(context, "Profil Berhasil Diperbarui!", Toast.LENGTH_SHORT).show()
+                        onSaveSuccess(nameInput, classInput)
+                    } else {
+                        Toast.makeText(context, "Nama dan Kelas tidak boleh kosong!", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = BluePrimary,
+                    contentColor = Color.White
+                )
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.Save, contentDescription = "Save", modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "Simpan Perubahan", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun ProfileScreenPreview() {
+    EightCanteenTheme {
+        ProfileScreen()
+    }
+}

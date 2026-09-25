@@ -8,23 +8,14 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -104,15 +95,14 @@ fun SellerDashboardScreen(
     cookingCount: Int = 8,
     averagePrepMinutes: Int = 7,
     onScanQrClick: () -> Unit = {},
-    onNavigateToAdmin: () -> Unit = {},
-    onNavigateToHome: () -> Unit = {}
+    onLogoutClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
     var isStoreOpen by remember { mutableStateOf(true) }
     var showNewOrderAlert by remember { mutableStateOf(true) }
-    var selectedNavTab by remember { mutableIntStateOf(2) } // Stand tab active
+    var selectedNavTab by remember { mutableIntStateOf(0) } // Stand tab active (beranda)
 
     // Managed stock list state
     var menuList by remember {
@@ -149,7 +139,7 @@ fun SellerDashboardScreen(
                             color = BluePrimary
                         )
                         Text(
-                            text = "STAND",
+                            text = "SELLER",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = TextMuted,
@@ -179,22 +169,22 @@ fun SellerDashboardScreen(
                         )
                     }
 
-                    // Profile Avatar
+                    // Logout Action
                     Box(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(BluePrimary)
-                            .clickable { },
+                            .background(Color(0xFFFEE2E2))
+                            .clickable { onLogoutClick() },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(imageVector = Icons.Default.Person, contentDescription = "Profile", tint = Color.White, modifier = Modifier.size(20.dp))
+                        Icon(imageVector = Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = Color(0xFFDC2626), modifier = Modifier.size(18.dp))
                     }
                 }
             }
         },
         bottomBar = {
-            // Bottom Navigation Bar
+            // Bottom Navigation Bar (Seller Exclusive)
             NavigationBar(
                 containerColor = Color.White,
                 tonalElevation = 8.dp
@@ -203,10 +193,9 @@ fun SellerDashboardScreen(
                     selected = selectedNavTab == 0,
                     onClick = {
                         selectedNavTab = 0
-                        onNavigateToHome()
                     },
                     icon = { Icon(imageVector = Icons.Default.Storefront, contentDescription = "Beranda") },
-                    label = { Text("Beranda", fontSize = 11.sp) },
+                    label = { Text("Beranda", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = BluePrimary, selectedTextColor = BluePrimary, indicatorColor = BlueLightBg)
                 )
                 NavigationBarItem(
@@ -222,18 +211,8 @@ fun SellerDashboardScreen(
                 NavigationBarItem(
                     selected = selectedNavTab == 2,
                     onClick = { selectedNavTab = 2 },
-                    icon = { Icon(imageVector = Icons.Default.Storefront, contentDescription = "Stand") },
-                    label = { Text("Stand", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                    colors = NavigationBarItemDefaults.colors(selectedIconColor = BluePrimary, selectedTextColor = BluePrimary, indicatorColor = BlueLightBg)
-                )
-                NavigationBarItem(
-                    selected = selectedNavTab == 3,
-                    onClick = {
-                        selectedNavTab = 3
-                        onNavigateToAdmin()
-                    },
-                    icon = { Icon(imageVector = Icons.Default.Widgets, contentDescription = "Admin") },
-                    label = { Text("Admin", fontSize = 11.sp) },
+                    icon = { Icon(imageVector = Icons.Default.ShoppingBag, contentDescription = "Menu") },
+                    label = { Text("Manajemen Menu", fontSize = 11.sp) },
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = BluePrimary, selectedTextColor = BluePrimary, indicatorColor = BlueLightBg)
                 )
             }
@@ -814,7 +793,6 @@ fun SellerDashboardScreen(
                                         updated[index] = menu.copy(isAvailable = checked, stock = if (checked && menu.stock == 0) 5 else menu.stock)
                                         menuList = updated
                                     },
-                                    modifier = Modifier.scale(0.8f),
                                     colors = SwitchDefaults.colors(
                                         checkedThumbColor = Color.White,
                                         checkedTrackColor = BluePrimary,

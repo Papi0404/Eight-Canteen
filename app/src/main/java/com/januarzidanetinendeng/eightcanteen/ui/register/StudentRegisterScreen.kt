@@ -87,12 +87,12 @@ fun StudentRegisterScreen(
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
-    var fullName by remember { mutableStateOf("Fajar Pratama Putra") }
-    var selectedClass by remember { mutableStateOf("XI RPL 2 (Rekayasa Perangkat Lunak)") }
-    var nisnNumber by remember { mutableStateOf("2122100482") }
+    var fullName by remember { mutableStateOf("") }
+    var selectedClass by remember { mutableStateOf("") }
+    var nisnNumber by remember { mutableStateOf("") }
     var isClassDropdownExpanded by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
-    var photoUploaded by remember { mutableStateOf(true) }
+    var photoUploaded by remember { mutableStateOf(false) }
 
     val classOptions = listOf(
         "X RPL 1 (Rekayasa Perangkat Lunak)",
@@ -345,6 +345,7 @@ fun StudentRegisterScreen(
                     OutlinedTextField(
                         value = fullName,
                         onValueChange = { fullName = it },
+                        placeholder = { Text("misal: Fajar Pratama", fontSize = 14.sp, color = TextMuted) },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Badge,
@@ -381,6 +382,7 @@ fun StudentRegisterScreen(
                             value = selectedClass,
                             onValueChange = {},
                             readOnly = true,
+                            placeholder = { Text("Pilih Kelas", fontSize = 14.sp, color = TextMuted) },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Default.School,
@@ -454,6 +456,7 @@ fun StudentRegisterScreen(
                     OutlinedTextField(
                         value = nisnNumber,
                         onValueChange = { if (it.length <= 10) nisnNumber = it.filter { c -> c.isDigit() } },
+                        placeholder = { Text("misal: 1234567890", fontSize = 14.sp, color = TextMuted) },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.CardMembership,

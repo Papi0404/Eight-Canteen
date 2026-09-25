@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,7 +32,6 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Storefront
-import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -47,6 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -62,9 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.januarzidanetinendeng.eightcanteen.ui.components.EKantinLogoIcon
 import com.januarzidanetinendeng.eightcanteen.ui.components.ShieldCheckIcon
-import com.januarzidanetinendeng.eightcanteen.ui.theme.BlueChipBg
 import com.januarzidanetinendeng.eightcanteen.ui.theme.BlueLightBg
-import com.januarzidanetinendeng.eightcanteen.ui.theme.BlueLightCard
 import com.januarzidanetinendeng.eightcanteen.ui.theme.BluePrimary
 import com.januarzidanetinendeng.eightcanteen.ui.theme.BorderColor
 import com.januarzidanetinendeng.eightcanteen.ui.theme.EightCanteenTheme
@@ -98,25 +97,31 @@ fun PointsRewardScreen(
     currentPoints: Int = 25,
     onBackClick: () -> Unit = {},
     onNavigateToHome: () -> Unit = {},
-    onNavigateToAdmin: () -> Unit = {}
+    onNavigateToProfile: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
-    var selectedNavTab by remember { mutableIntStateOf(0) }
+    var selectedNavTab by remember { mutableIntStateOf(0) } // Beranda
 
-    val otherRewards = listOf(
-        RewardItem("r1", "Es Teh Manis Jumbo", "Stand Minuman D & Bu Ani", 5, "Segar", "🥤"),
-        RewardItem("r2", "2 Pcs Gorengan...", "Stand Gorengan Pak Kumis", 3, "Camilan", "🧆"),
-        RewardItem("r3", "Voucher Diskon Rp...", "Berlaku di Semua Stand", 10, "Potongan", "🎫"),
-        RewardItem("r4", "Ekstra Keju / Sambal", "Stand Kebab & Ayam...", 2, "Add-on", "🧀")
-    )
+    val myVouchers = remember { mutableStateListOf<RewardItem>() }
 
-    val pointHistory = listOf(
-        PointHistoryItem("h1", "Pre-order Kebab Jumbo (Kebab Bang Ali)", "Hari ini • 09.42 WIB", 2, "🍱"),
-        PointHistoryItem("h2", "Makan Siang Ayam Geprek (Stand A)", "Kemarin • 12.15 WIB", 3, "🍴"),
-        PointHistoryItem("h3", "Penukaran Makanan di Stand B", "5 Okt 2025 • 10.05 WIB", -20, "🎁"),
-        PointHistoryItem("h4", "Bonus Siswa Baru & Profil", "1 Okt 2025 • 07.30 WIB", 5, "🎉")
-    )
+    val otherRewards = remember {
+        listOf(
+            RewardItem("r1", "Es Teh Manis Jumbo", "Stand Minuman D & Bu Ani", 5, "Segar", "🥤"),
+            RewardItem("r2", "2 Pcs Gorengan...", "Stand Gorengan Pak Kumis", 3, "Camilan", "🧆"),
+            RewardItem("r3", "Voucher Diskon Rp...", "Berlaku di Semua Stand", 10, "Potongan", "🎫"),
+            RewardItem("r4", "Ekstra Keju / Sambal", "Stand Kebab & Ayam...", 2, "Add-on", "🧀")
+        )
+    }
+
+    val pointHistory = remember {
+        listOf(
+            PointHistoryItem("h1", "Pre-order Kebab Jumbo (Kebab Bang Ali)", "Hari ini • 09.42 WIB", 2, "🍱"),
+            PointHistoryItem("h2", "Makan Siang Ayam Geprek (Stand A)", "Kemarin • 12.15 WIB", 3, "🍴"),
+            PointHistoryItem("h3", "Penukaran Makanan di Stand B", "5 Okt 2025 • 10.05 WIB", -20, "🎁"),
+            PointHistoryItem("h4", "Bonus Siswa Baru & Profil", "1 Okt 2025 • 07.30 WIB", 5, "🎉")
+        )
+    }
 
     Scaffold(
         containerColor = ScreenBg,
@@ -141,7 +146,7 @@ fun PointsRewardScreen(
                             color = BluePrimary
                         )
                         Text(
-                            text = "BERANDA",
+                            text = "SISWA",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = TextMuted,
@@ -163,7 +168,7 @@ fun PointsRewardScreen(
                             .size(36.dp)
                             .clip(CircleShape)
                             .background(BluePrimary)
-                            .clickable { },
+                            .clickable { onNavigateToProfile() },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(imageVector = Icons.Default.Person, contentDescription = "Profile", tint = Color.White, modifier = Modifier.size(20.dp))
@@ -172,7 +177,7 @@ fun PointsRewardScreen(
             }
         },
         bottomBar = {
-            // Bottom Navigation Bar
+            // Bottom Navigation Bar (Student Only - STRICT ISOLATION)
             NavigationBar(
                 containerColor = Color.White,
                 tonalElevation = 8.dp
@@ -201,20 +206,10 @@ fun PointsRewardScreen(
                     selected = selectedNavTab == 2,
                     onClick = {
                         selectedNavTab = 2
-                        Toast.makeText(context, "Daftar Stand Kantin SMKN 8", Toast.LENGTH_SHORT).show()
+                        onNavigateToProfile()
                     },
-                    icon = { Icon(imageVector = Icons.Default.Storefront, contentDescription = "Stand") },
-                    label = { Text("Stand", fontSize = 11.sp) },
-                    colors = NavigationBarItemDefaults.colors(selectedIconColor = BluePrimary, selectedTextColor = BluePrimary, indicatorColor = BlueLightBg)
-                )
-                NavigationBarItem(
-                    selected = selectedNavTab == 3,
-                    onClick = {
-                        selectedNavTab = 3
-                        onNavigateToAdmin()
-                    },
-                    icon = { Icon(imageVector = Icons.Default.Widgets, contentDescription = "Admin") },
-                    label = { Text("Admin", fontSize = 11.sp) },
+                    icon = { Icon(imageVector = Icons.Default.Person, contentDescription = "Profil") },
+                    label = { Text("Profil", fontSize = 11.sp) },
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = BluePrimary, selectedTextColor = BluePrimary, indicatorColor = BlueLightBg)
                 )
             }
@@ -460,6 +455,78 @@ fun PointsRewardScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // NEW: Voucher Saya Section
+            if (myVouchers.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "Voucher Saya", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "🎫", fontSize = 14.sp)
+                        }
+                        Text(text = "Siap digunakan saat jajan berikutnya", fontSize = 11.sp, color = TextSecondary)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFFDCFCE7))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(text = "${myVouchers.size} Tersedia", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF16A34A))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    myVouchers.forEach { voucher ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
+                            border = BorderStroke(1.dp, Color(0xFFFDE047))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                    Box(
+                                        modifier = Modifier.size(44.dp).clip(CircleShape).background(Color.White),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(text = voucher.foodEmoji, fontSize = 22.sp)
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(text = voucher.name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                        Text(text = voucher.standName, fontSize = 11.sp, color = TextSecondary)
+                                    }
+                                }
+                                Button(
+                                    onClick = { Toast.makeText(context, "Membuka QR Code Klaim...", Toast.LENGTH_SHORT).show() },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                    modifier = Modifier.height(34.dp)
+                                ) {
+                                    Text(text = "Pakai", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(20.dp))
+            }
+
             // 4. Tukar Hadiah Utama Section
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -569,7 +636,8 @@ fun PointsRewardScreen(
                     // Big Action Claim Button
                     Button(
                         onClick = {
-                            Toast.makeText(context, "Voucher 1 Porsi Makan Gratis Berhasil Ditukarkan! Kode QR Siap Diklaim.", Toast.LENGTH_LONG).show()
+                            myVouchers.add(RewardItem("v0", "1 Porsi Makan Siang Gratis", "Kantin SMKN 8", 20, "Voucher", "🍱"))
+                            Toast.makeText(context, "Voucher 1 Porsi Makan Gratis Berhasil Ditambahkan ke Voucher Saya!", Toast.LENGTH_LONG).show()
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -624,13 +692,19 @@ fun PointsRewardScreen(
                     RewardCard(
                         item = otherRewards[0],
                         modifier = Modifier.weight(1f),
-                        onClaimClick = { Toast.makeText(context, "Klaim Es Teh Manis Jumbo (5 Poin) Berhasil!", Toast.LENGTH_SHORT).show() }
+                        onClaimClick = { 
+                            myVouchers.add(otherRewards[0])
+                            Toast.makeText(context, "Klaim Es Teh Manis Jumbo (5 Poin) Berhasil!", Toast.LENGTH_SHORT).show() 
+                        }
                     )
                     // Card 2
                     RewardCard(
                         item = otherRewards[1],
                         modifier = Modifier.weight(1f),
-                        onClaimClick = { Toast.makeText(context, "Klaim 2 Pcs Gorengan (3 Poin) Berhasil!", Toast.LENGTH_SHORT).show() }
+                        onClaimClick = { 
+                            myVouchers.add(otherRewards[1])
+                            Toast.makeText(context, "Klaim 2 Pcs Gorengan (3 Poin) Berhasil!", Toast.LENGTH_SHORT).show() 
+                        }
                     )
                 }
 
@@ -642,13 +716,19 @@ fun PointsRewardScreen(
                     RewardCard(
                         item = otherRewards[2],
                         modifier = Modifier.weight(1f),
-                        onClaimClick = { Toast.makeText(context, "Klaim Voucher Diskon Rp 5.000 Berhasil!", Toast.LENGTH_SHORT).show() }
+                        onClaimClick = { 
+                            myVouchers.add(otherRewards[2])
+                            Toast.makeText(context, "Klaim Voucher Diskon Rp 5.000 Berhasil!", Toast.LENGTH_SHORT).show() 
+                        }
                     )
                     // Card 4
                     RewardCard(
                         item = otherRewards[3],
                         modifier = Modifier.weight(1f),
-                        onClaimClick = { Toast.makeText(context, "Klaim Ekstra Keju/Sambal Berhasil!", Toast.LENGTH_SHORT).show() }
+                        onClaimClick = { 
+                            myVouchers.add(otherRewards[3])
+                            Toast.makeText(context, "Klaim Ekstra Keju/Sambal Berhasil!", Toast.LENGTH_SHORT).show() 
+                        }
                     )
                 }
             }

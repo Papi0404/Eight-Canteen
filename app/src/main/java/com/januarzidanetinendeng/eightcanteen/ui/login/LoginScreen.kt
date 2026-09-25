@@ -26,9 +26,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -81,6 +83,7 @@ fun LoginScreen(
     initialPhoneNumber: String = "",
     onNavigateToAdmin: () -> Unit = {},
     onNavigateToRegister: () -> Unit = {},
+    onNavigateToStandRegister: () -> Unit = {},
     onRequestOtpSuccess: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -203,6 +206,33 @@ fun LoginScreen(
             )
 
             Spacer(modifier = Modifier.height(20.dp))
+
+            // ==========================================
+            // DEMO / TEST ACCOUNT INFO BOX
+            // ==========================================
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFFFEF2F2))
+                    .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(12.dp))
+                    .padding(12.dp)
+            ) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(imageVector = Icons.Default.Info, contentDescription = "Info", tint = Color(0xFFDC2626), modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "Nomor Dummy Untuk Uji Coba Role", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF991B1B))
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(text = "• Admin: Ketik 811-9999-0000", fontSize = 11.sp, color = Color(0xFFB91C1C))
+                    Text(text = "• Penjual (Stand): Ketik 822-9999-0000", fontSize = 11.sp, color = Color(0xFFB91C1C))
+                    Text(text = "• Siswa: Ketik nomor selain di atas", fontSize = 11.sp, color = Color(0xFFB91C1C))
+                }
+            }
+            // ==========================================
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             // 3. Main WhatsApp Login Card
             Card(
@@ -432,7 +462,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 4. Secondary Card: Pengguna Baru? (Clickable to open Student Registration)
+            // 4. Secondary Card 1: Pengguna Baru? (Clickable to open Student Registration)
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -490,9 +520,69 @@ fun LoginScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // 5. Admin / Petugas Portal Link
+            // 5. Secondary Card 2: Daftarkan Stand Kantin (Mitra Tenant)
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        onNavigateToStandRegister()
+                    },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, BorderColor)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(BlueLightBg),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Store,
+                                contentDescription = "New Stand",
+                                tint = BluePrimary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Daftarkan Stand Kantin?",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "Formulir pendaftaran mitra tenant & penjual",
+                                fontSize = 11.sp,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Go",
+                        tint = TextMuted,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 6. Admin / Petugas Portal Link
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -518,7 +608,7 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 6. Footer Info
+            // 7. Footer Info
             Text(
                 text = "VERSI 2.4.0  •  KANTIN SEHAT DIGITAL",
                 fontSize = 11.sp,

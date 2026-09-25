@@ -88,11 +88,11 @@ fun StandRegisterScreen(
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
-    var ownerName by remember { mutableStateOf("Ibu Hj. Maryati") }
-    var standName by remember { mutableStateOf("Kantin Berkah Bang Ali") }
-    var counterSlot by remember { mutableStateOf("Loket Stand 02 (Lantai 1 Utama SMKN 8)") }
-    var foodCategory by remember { mutableStateOf("Makanan Berat / Nasi & Ayam") }
-    var bankAccount by remember { mutableStateOf("Bank DKI - 10829384729 (Hj. Maryati)") }
+    var ownerName by remember { mutableStateOf("") }
+    var standName by remember { mutableStateOf("") }
+    var counterSlot by remember { mutableStateOf("") }
+    var foodCategory by remember { mutableStateOf("") }
+    var bankAccount by remember { mutableStateOf("") }
 
     var isCounterDropdownExpanded by remember { mutableStateOf(false) }
     var isCategoryDropdownExpanded by remember { mutableStateOf(false) }
@@ -396,6 +396,7 @@ fun StandRegisterScreen(
                             value = counterSlot,
                             onValueChange = {},
                             readOnly = true,
+                            placeholder = { Text("Pilih Loket Kantin", fontSize = 13.sp, color = TextMuted) },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Default.Numbers,
@@ -460,6 +461,7 @@ fun StandRegisterScreen(
                             value = foodCategory,
                             onValueChange = {},
                             readOnly = true,
+                            placeholder = { Text("Pilih Kategori Makanan", fontSize = 13.sp, color = TextMuted) },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Default.Fastfood,

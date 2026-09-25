@@ -6,46 +6,46 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import com.januarzidanetinendeng.eightcanteen.auth.AuthViewModel
-import com.januarzidanetinendeng.eightcanteen.auth.UserRole
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.januarzidanetinendeng.eightcanteen.ui.admin.AdminAddStandScreen
 import com.januarzidanetinendeng.eightcanteen.ui.admin.AdminDashboardScreen
 import com.januarzidanetinendeng.eightcanteen.ui.checkout.CartViewModel
-import com.januarzidanetinendeng.eightcanteen.ui.checkout.CheckoutScreen
+import com.januarzidanetinendeng.eightcanteen.ui.checkout.CheckoutPaymentScreen
+import com.januarzidanetinendeng.eightcanteen.ui.components.NotificationScreen
+import com.januarzidanetinendeng.eightcanteen.ui.components.QrScannerScreen
 import com.januarzidanetinendeng.eightcanteen.ui.dashboard.StudentDashboardScreen
-import com.januarzidanetinendeng.eightcanteen.ui.login.LoginAdminScreen
 import com.januarzidanetinendeng.eightcanteen.ui.login.LoginScreen
 import com.januarzidanetinendeng.eightcanteen.ui.otp.OtpVerificationScreen
-import com.januarzidanetinendeng.eightcanteen.ui.payment.PayAtCounterScreen
-import com.januarzidanetinendeng.eightcanteen.ui.payment.QrisPaymentScreen
-import com.januarzidanetinendeng.eightcanteen.ui.payment.StrukLunasScreen
 import com.januarzidanetinendeng.eightcanteen.ui.points.PointsRewardScreen
+import com.januarzidanetinendeng.eightcanteen.ui.profile.ProfileScreen
 import com.januarzidanetinendeng.eightcanteen.ui.register.StudentRegisterScreen
 import com.januarzidanetinendeng.eightcanteen.ui.seller.SellerDashboardScreen
 import com.januarzidanetinendeng.eightcanteen.ui.stand.StandRegisterScreen
 import com.januarzidanetinendeng.eightcanteen.ui.theme.EightCanteenTheme
 
 enum class ScreenState {
-    LOGIN,               // Halaman 1: Login Siswa
-    LOGIN_ADMIN,         // Form Otentikasi Admin (WA + OTP)
-    OTP_VERIFICATION,    // Halaman 2: Verifikasi OTP Siswa
-    STUDENT_REGISTER,    // Halaman 3: Registrasi Siswa
-    HOME_LOGGED_IN,      // Beranda / Dashboard Utama
-    CHECKOUT,            // Checkout Pesanan
-    QRIS_PAYMENT,        // Pembayaran QRIS Dinamis
-    PAY_AT_COUNTER,      // Pembayaran Cash / Loket Stand
-    STRUK_LUNAS,         // Struk Lunas & Barcode Pickup
-    POINTS_REWARD,       // Hadiah & Poin Kantin
-    STAND_REGISTER,      // Pendaftaran Stand Baru
-    ADMIN_ADD_STAND,     // Admin Tambah Stand
-    SELLER_DASHBOARD,    // Dashboard Penjual Stand
-    ADMIN_DASHBOARD      // Dashboard Admin (Protected Route)
+    LOGIN,
+    OTP_VERIFICATION,
+    STUDENT_REGISTER,
+    STAND_REGISTER,
+    ADMIN_ADD_STAND,
+    HOME_LOGGED_IN,
+    POINTS_REWARD,
+    PROFILE,
+    CHECKOUT,
+    SELLER_DASHBOARD,
+    ADMIN_DASHBOARD,
+    SCAN_QR,
+    NOTIFICATIONS
+}
+
+enum class UserRole {
+    STUDENT, SELLER, ADMIN
 }
 
 class MainActivity : ComponentActivity() {
@@ -61,63 +61,44 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MainAppNavigation() {
+fun MainAppNavigation(
+    cartViewModel: CartViewModel = viewModel()
+) {
     val context = LocalContext.current
-
-    // Start Destination diatur ke Halaman 1 (LOGIN)
     var currentScreen by remember { mutableStateOf(ScreenState.LOGIN) }
-
-    // User Session & Role ViewModel
-    val authViewModel: AuthViewModel = remember { AuthViewModel() }
-    val currentUserRole by authViewModel.currentUserRole.collectAsState()
-    val userName by authViewModel.userName.collectAsState()
-    val userClass by authViewModel.userClass.collectAsState()
-
-    var userPhoneNumber by remember { mutableStateOf("812-3456-7890") }
+    var currentUserRole by remember { mutableStateOf(UserRole.STUDENT) }
+    
+    var userPhoneNumber by remember { mutableStateOf("") }
+    
+    // Student Data
+    var studentName by remember { mutableStateOf("Dimas Pratama") }
+    var studentClass by remember { mutableStateOf("XII RPL 2 • SMKN 8") }
+    
+    // Seller Data
     var sellerStandName by remember { mutableStateOf("Kebab Bang Ali") }
     var sellerCounterSlot by remember { mutableStateOf("Stand 04") }
 
-    // Shared CartViewModel (Single Source of Truth)
-    val cartViewModel: CartViewModel = remember { CartViewModel() }
-
     when (currentScreen) {
-        // ---------------------------------------------------------------------
-        // HALAMAN 1: LOGIN SISWA
-        // ---------------------------------------------------------------------
         ScreenState.LOGIN -> {
             LoginScreen(
                 initialPhoneNumber = userPhoneNumber,
                 onNavigateToAdmin = {
-                    currentScreen = ScreenState.LOGIN_ADMIN // Masuk ke Form OTP Admin Khusus
+                    // Force Demo Admin
+                    userPhoneNumber = "811-9999-0000"
                 },
                 onNavigateToRegister = {
                     currentScreen = ScreenState.STUDENT_REGISTER
                 },
+                onNavigateToStandRegister = {
+                    currentScreen = ScreenState.STAND_REGISTER
+                },
                 onRequestOtpSuccess = { phone ->
-                    userPhoneNumber = if (phone.isNotBlank()) phone else "812-3456-7890"
+                    userPhoneNumber = phone
                     currentScreen = ScreenState.OTP_VERIFICATION
                 }
             )
         }
 
-        // ---------------------------------------------------------------------
-        // FORM PORTAL LOGIN ADMIN (VERIFIKASI WA ADMIN & OTP 4-DIGIT)
-        // ---------------------------------------------------------------------
-        ScreenState.LOGIN_ADMIN -> {
-            LoginAdminScreen(
-                authViewModel = authViewModel,
-                onBackClick = {
-                    currentScreen = ScreenState.LOGIN
-                },
-                onAdminAuthSuccess = {
-                    currentScreen = ScreenState.ADMIN_DASHBOARD
-                }
-            )
-        }
-
-        // ---------------------------------------------------------------------
-        // HALAMAN 2: VERIFIKASI OTP SISWA
-        // ---------------------------------------------------------------------
         ScreenState.OTP_VERIFICATION -> {
             OtpVerificationScreen(
                 phoneNumber = userPhoneNumber,
@@ -127,15 +108,30 @@ fun MainAppNavigation() {
                 onEditPhoneClick = {
                     currentScreen = ScreenState.LOGIN
                 },
-                onVerificationSuccess = { _ ->
-                    currentScreen = ScreenState.STUDENT_REGISTER
+                onVerificationSuccess = { otp ->
+                    // ROLE ROUTING LOGIC (Simulating Database Check)
+                    val cleanPhone = userPhoneNumber.replace("-", "")
+                    when {
+                        cleanPhone.startsWith("811") -> { // Admin Phone
+                            currentUserRole = UserRole.ADMIN
+                            currentScreen = ScreenState.ADMIN_DASHBOARD
+                            Toast.makeText(context, "Login sebagai Admin Koperasi", Toast.LENGTH_SHORT).show()
+                        }
+                        cleanPhone.startsWith("822") -> { // Seller Phone
+                            currentUserRole = UserRole.SELLER
+                            currentScreen = ScreenState.SELLER_DASHBOARD
+                            Toast.makeText(context, "Login sebagai Penjual/Tenant", Toast.LENGTH_SHORT).show()
+                        }
+                        else -> { // Student Phone
+                            currentUserRole = UserRole.STUDENT
+                            currentScreen = ScreenState.STUDENT_REGISTER
+                            Toast.makeText(context, "Verifikasi Siswa Berhasil", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
             )
         }
 
-        // ---------------------------------------------------------------------
-        // HALAMAN 3: REGISTRASI DATA SISWA & KELAS
-        // ---------------------------------------------------------------------
         ScreenState.STUDENT_REGISTER -> {
             StudentRegisterScreen(
                 verifiedPhoneNumber = userPhoneNumber,
@@ -143,119 +139,72 @@ fun MainAppNavigation() {
                     currentScreen = ScreenState.OTP_VERIFICATION
                 },
                 onRegisterSuccess = { name, className ->
-                    authViewModel.loginAsStudent(name, className, userPhoneNumber)
+                    studentName = name
+                    studentClass = className
                     currentScreen = ScreenState.HOME_LOGGED_IN
-                    Toast.makeText(context, "Selamat datang, $name!", Toast.LENGTH_SHORT).show()
                 }
             )
         }
 
-        // ---------------------------------------------------------------------
-        // BERANDA / DASHBOARD UTAMA ("beranda")
-        // ---------------------------------------------------------------------
+        ScreenState.STAND_REGISTER -> {
+            StandRegisterScreen(
+                onBackClick = {
+                    currentScreen = ScreenState.LOGIN
+                },
+                onRegisterSuccess = { stand, owner ->
+                    sellerStandName = stand
+                    sellerCounterSlot = "Stand 04"
+                    currentScreen = ScreenState.SELLER_DASHBOARD
+                }
+            )
+        }
+
+        ScreenState.ADMIN_ADD_STAND -> {
+            AdminAddStandScreen(
+                onBackClick = {
+                    currentScreen = ScreenState.ADMIN_DASHBOARD
+                },
+                onAddStandSuccess = { stand, owner ->
+                    Toast.makeText(context, "Akses Seller untuk $stand berhasil dibuat!", Toast.LENGTH_LONG).show()
+                    currentScreen = ScreenState.ADMIN_DASHBOARD
+                }
+            )
+        }
+
         ScreenState.HOME_LOGGED_IN -> {
             StudentDashboardScreen(
                 cartViewModel = cartViewModel,
-                userRole = currentUserRole,
-                studentName = userName,
-                studentClass = userClass,
+                studentName = studentName,
+                studentClass = studentClass,
                 loyaltyPoints = 25,
                 onPointsClick = {
                     currentScreen = ScreenState.POINTS_REWARD
                 },
-                onNavigateToAdmin = {
-                    if (currentUserRole == UserRole.ADMIN) {
-                        currentScreen = ScreenState.ADMIN_DASHBOARD
-                    } else {
-                        Toast.makeText(
-                            context,
-                            "Akses Ditolak: Area Khusus Administrator Koperasi SMKN 8",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
+                onLogoutClick = {
+                    userPhoneNumber = ""
+                    currentScreen = ScreenState.LOGIN
                 },
                 onCheckoutClick = {
                     currentScreen = ScreenState.CHECKOUT
+                },
+                onNavigateToNotifications = {
+                    currentScreen = ScreenState.NOTIFICATIONS
                 }
             )
         }
 
-        // ---------------------------------------------------------------------
-        // CHECKOUT SCREEN ("checkout")
-        // ---------------------------------------------------------------------
-        ScreenState.CHECKOUT -> {
-            CheckoutScreen(
-                viewModel = cartViewModel,
+        ScreenState.NOTIFICATIONS -> {
+            NotificationScreen(
                 onBackClick = {
                     currentScreen = ScreenState.HOME_LOGGED_IN
-                },
-                onNavigateToQris = {
-                    currentScreen = ScreenState.QRIS_PAYMENT
-                },
-                onNavigateToCash = {
-                    currentScreen = ScreenState.PAY_AT_COUNTER
-                },
-                onPaymentComplete = {
-                    currentScreen = ScreenState.STRUK_LUNAS
                 }
             )
         }
 
-        // ---------------------------------------------------------------------
-        // LAYAR PEMBAYARAN QRIS ("qris_payment")
-        // ---------------------------------------------------------------------
-        ScreenState.QRIS_PAYMENT -> {
-            QrisPaymentScreen(
-                viewModel = cartViewModel,
-                onBackClick = {
-                    currentScreen = ScreenState.CHECKOUT
-                },
-                onPaymentSuccess = {
-                    currentScreen = ScreenState.STRUK_LUNAS
-                }
-            )
-        }
-
-        // ---------------------------------------------------------------------
-        // LAYAR PEMBAYARAN CASH DI LOKET ("pay_at_counter")
-        // ---------------------------------------------------------------------
-        ScreenState.PAY_AT_COUNTER -> {
-            PayAtCounterScreen(
-                viewModel = cartViewModel,
-                onBackClick = {
-                    currentScreen = ScreenState.CHECKOUT
-                },
-                onConfirmCashPayment = {
-                    currentScreen = ScreenState.STRUK_LUNAS
-                },
-                onCancelOrder = {
-                    currentScreen = ScreenState.HOME_LOGGED_IN
-                }
-            )
-        }
-
-        // ---------------------------------------------------------------------
-        // STRUK LUNAS & BARCODE PICKUP ("struk_lunas")
-        // ---------------------------------------------------------------------
-        ScreenState.STRUK_LUNAS -> {
-            StrukLunasScreen(
-                viewModel = cartViewModel,
-                onBackClick = {
-                    currentScreen = ScreenState.HOME_LOGGED_IN
-                },
-                onBackToHome = {
-                    currentScreen = ScreenState.HOME_LOGGED_IN
-                }
-            )
-        }
-
-        // ---------------------------------------------------------------------
-        // HADIAH & POIN KANTIN
-        // ---------------------------------------------------------------------
         ScreenState.POINTS_REWARD -> {
             PointsRewardScreen(
-                studentName = userName,
-                studentClass = userClass.take(12),
+                studentName = studentName,
+                studentClass = studentClass.take(12),
                 currentPoints = 25,
                 onBackClick = {
                     currentScreen = ScreenState.HOME_LOGGED_IN
@@ -263,23 +212,46 @@ fun MainAppNavigation() {
                 onNavigateToHome = {
                     currentScreen = ScreenState.HOME_LOGGED_IN
                 },
-                onNavigateToAdmin = {
-                    if (currentUserRole == UserRole.ADMIN) {
-                        currentScreen = ScreenState.ADMIN_DASHBOARD
-                    } else {
-                        Toast.makeText(
-                            context,
-                            "Akses Ditolak: Area Khusus Administrator Koperasi SMKN 8",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
+                onNavigateToProfile = {
+                    currentScreen = ScreenState.PROFILE
                 }
             )
         }
 
-        // ---------------------------------------------------------------------
-        // SELLER DASHBOARD (PENJUAL STAND)
-        // ---------------------------------------------------------------------
+        ScreenState.PROFILE -> {
+            ProfileScreen(
+                currentName = studentName,
+                currentClass = studentClass,
+                currentPhone = userPhoneNumber,
+                onBackClick = {
+                    currentScreen = ScreenState.HOME_LOGGED_IN
+                },
+                onLogoutClick = {
+                    userPhoneNumber = ""
+                    currentScreen = ScreenState.LOGIN
+                },
+                onSaveSuccess = { newName, newClass ->
+                    studentName = newName
+                    studentClass = newClass
+                    currentScreen = ScreenState.HOME_LOGGED_IN
+                }
+            )
+        }
+
+        ScreenState.CHECKOUT -> {
+            CheckoutPaymentScreen(
+                cartViewModel = cartViewModel,
+                onBackClick = {
+                    currentScreen = ScreenState.HOME_LOGGED_IN
+                },
+                onPaymentSuccess = { method ->
+                    Toast.makeText(context, "Pesanan Berhasil Dibayar dengan $method!", Toast.LENGTH_LONG).show()
+                    cartViewModel.clearCart()
+                    currentScreen = ScreenState.HOME_LOGGED_IN
+                }
+            )
+        }
+
         ScreenState.SELLER_DASHBOARD -> {
             SellerDashboardScreen(
                 standName = sellerStandName,
@@ -291,84 +263,37 @@ fun MainAppNavigation() {
                 cookingCount = 8,
                 averagePrepMinutes = 7,
                 onScanQrClick = {
-                    Toast.makeText(context, "Kamera QR Scanner Pengambilan Pesanan Siswa Aktif", Toast.LENGTH_SHORT).show()
+                    currentScreen = ScreenState.SCAN_QR
                 },
-                onNavigateToAdmin = {
-                    if (currentUserRole == UserRole.ADMIN) {
-                        currentScreen = ScreenState.ADMIN_DASHBOARD
-                    } else {
-                        Toast.makeText(
-                            context,
-                            "Akses Ditolak: Area Khusus Administrator Koperasi SMKN 8",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                },
-                onNavigateToHome = {
-                    currentScreen = ScreenState.HOME_LOGGED_IN
+                onLogoutClick = {
+                    userPhoneNumber = ""
+                    currentScreen = ScreenState.LOGIN
                 }
             )
         }
 
-        // ---------------------------------------------------------------------
-        // ADMIN DASHBOARD (PROTECTED ROUTE GUARD)
-        // ---------------------------------------------------------------------
-        ScreenState.ADMIN_DASHBOARD -> {
-            if (currentUserRole != UserRole.ADMIN) {
-                Toast.makeText(
-                    context,
-                    "Akses Ditolak: Area Khusus Administrator Koperasi SMKN 8",
-                    Toast.LENGTH_LONG
-                ).show()
-                currentScreen = ScreenState.HOME_LOGGED_IN
-            } else {
-                AdminDashboardScreen(
-                    onNavigateToHome = {
-                        currentScreen = ScreenState.HOME_LOGGED_IN
-                    },
-                    onNavigateToStand = {
-                        currentScreen = ScreenState.SELLER_DASHBOARD
-                    }
-                )
-            }
-        }
-
-        // ---------------------------------------------------------------------
-        // STAND REGISTER / ADMIN ADD STAND
-        // ---------------------------------------------------------------------
-        ScreenState.STAND_REGISTER -> {
-            StandRegisterScreen(
+        ScreenState.SCAN_QR -> {
+            QrScannerScreen(
                 onBackClick = {
-                    currentScreen = ScreenState.LOGIN
+                    currentScreen = ScreenState.SELLER_DASHBOARD
                 },
-                onRegisterSuccess = { stand, _ ->
-                    sellerStandName = stand
-                    sellerCounterSlot = "Stand 04"
+                onScanSuccess = { orderId ->
+                    Toast.makeText(context, "Berhasil konfirmasi pengambilan $orderId", Toast.LENGTH_LONG).show()
                     currentScreen = ScreenState.SELLER_DASHBOARD
                 }
             )
         }
 
-        ScreenState.ADMIN_ADD_STAND -> {
-            if (currentUserRole != UserRole.ADMIN) {
-                Toast.makeText(
-                    context,
-                    "Akses Ditolak: Area Khusus Administrator Koperasi SMKN 8",
-                    Toast.LENGTH_LONG
-                ).show()
-                currentScreen = ScreenState.HOME_LOGGED_IN
-            } else {
-                AdminAddStandScreen(
-                    onBackClick = {
-                        currentScreen = ScreenState.ADMIN_DASHBOARD
-                    },
-                    onAddStandSuccess = { stand, _ ->
-                        sellerStandName = stand
-                        sellerCounterSlot = "Stand 01"
-                        currentScreen = ScreenState.SELLER_DASHBOARD
-                    }
-                )
-            }
+        ScreenState.ADMIN_DASHBOARD -> {
+            AdminDashboardScreen(
+                onLogoutClick = {
+                    userPhoneNumber = ""
+                    currentScreen = ScreenState.LOGIN
+                },
+                onNavigateToAddStand = {
+                    currentScreen = ScreenState.ADMIN_ADD_STAND
+                }
+            )
         }
     }
 }

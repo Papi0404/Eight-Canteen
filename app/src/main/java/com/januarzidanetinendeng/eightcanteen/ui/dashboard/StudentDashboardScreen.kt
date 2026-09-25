@@ -8,6 +8,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,14 +21,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Mic
@@ -36,7 +36,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Storefront
-import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -58,10 +57,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import com.januarzidanetinendeng.eightcanteen.auth.UserRole
-import com.januarzidanetinendeng.eightcanteen.ui.checkout.CartItem
-import com.januarzidanetinendeng.eightcanteen.ui.checkout.CartViewModel
-import com.januarzidanetinendeng.eightcanteen.ui.checkout.FoodImageType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,6 +67,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.januarzidanetinendeng.eightcanteen.ui.checkout.CartItem
+import com.januarzidanetinendeng.eightcanteen.ui.checkout.CartViewModel
+import com.januarzidanetinendeng.eightcanteen.ui.checkout.FoodImageType
 import com.januarzidanetinendeng.eightcanteen.ui.checkout.formatRupiah
 import com.januarzidanetinendeng.eightcanteen.ui.components.EKantinLogoIcon
 import com.januarzidanetinendeng.eightcanteen.ui.theme.BlueChipBg
@@ -111,16 +109,18 @@ data class MenuItem(
 @Composable
 fun StudentDashboardScreen(
     cartViewModel: CartViewModel = remember { CartViewModel() },
-    userRole: UserRole = UserRole.STUDENT,
     studentName: String = "Dimas Pratama",
     studentClass: String = "XII RPL 2 • SMKN 8",
     loyaltyPoints: Int = 25,
     onPointsClick: () -> Unit = {},
-    onNavigateToAdmin: () -> Unit = {},
-    onCheckoutClick: () -> Unit = {}
+    onLogoutClick: () -> Unit = {},
+    onCheckoutClick: () -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val filterScrollState = rememberScrollState()
+    val standsScrollState = rememberScrollState()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf("Semua") }
@@ -130,25 +130,28 @@ fun StudentDashboardScreen(
     val cartCount = cartUiState.totalMenuCount
     val cartTotal = cartUiState.subtotal
 
-    val stands = listOf(
-        StandItem("1", "Kebab Bang Ali", "4.9", "50m • Buka", false, "🥙"),
-        StandItem("2", "Ketoprak Bu Joko", "4.8", "15 mnt", true, "🍲"),
-        StandItem("3", "Ayam Geprek 8", "4.7", "8 mnt", false, "🍗"),
-        StandItem("4", "Official Barista 8", "4.9", "Cepat", false, "🧋")
-    )
+    val stands = remember {
+        listOf(
+            StandItem("1", "Kebab Bang Ali", "4.9", "50m • Buka", false, "🥙"),
+            StandItem("2", "Ketoprak Bu Joko", "4.8", "15 mnt", true, "🍲"),
+            StandItem("3", "Ayam Geprek 8", "4.7", "8 mnt", false, "🍗"),
+            StandItem("4", "Official Barista 8", "4.9", "Cepat", false, "🧋")
+        )
+    }
 
-    val menuItems = listOf(
-        MenuItem("m1", "Kebab Beef Jumbo", "Kebab Bang Ali", 15000, 4, "10 mnt", "Keju", Color(0xFFFEF3C7), "🥙"),
-        MenuItem("m2", "Ketoprak Telur Spesial", "Ketoprak Bu Joko", 14000, 2, "15 mnt", null, null, "🍲"),
-        MenuItem("m3", "Ayam Sambal Matah", "Ayam Geprek 8 • Termasuk Nasi", 16000, 8, "8 mnt", "Pedas", Color(0xFFFEE2E2), "🍗"),
-        MenuItem("m4", "Dimsum Ayam Mentai", "Stand Cemilan Gurih • 4pcs", 12000, 3, "5 mnt", null, null, "🥟"),
-        MenuItem("m5", "Es Kopi Susu Aren 8", "Kantin 8 Official Barista", 10000, 10, "Cepat", null, null, "🧋")
-    )
+    val menuItems = remember {
+        listOf(
+            MenuItem("m1", "Kebab Beef Jumbo", "Kebab Bang Ali", 15000, 4, "10 mnt", "Keju", Color(0xFFFEF3C7), "🥙"),
+            MenuItem("m2", "Ketoprak Telur Spesial", "Ketoprak Bu Joko", 14000, 2, "15 mnt", null, null, "🍲"),
+            MenuItem("m3", "Ayam Sambal Matah", "Ayam Geprek 8 • Termasuk Nasi", 16000, 8, "8 mnt", "Pedas", Color(0xFFFEE2E2), "🍗"),
+            MenuItem("m4", "Dimsum Ayam Mentai", "Stand Cemilan Gurih • 4pcs", 12000, 3, "5 mnt", null, null, "🥟"),
+            MenuItem("m5", "Es Kopi Susu Aren 8", "Kantin 8 Official Barista", 10000, 10, "Cepat", null, null, "🧋")
+        )
+    }
 
     Scaffold(
         containerColor = ScreenBg,
         topBar = {
-            // Top Bar Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -156,7 +159,6 @@ fun StudentDashboardScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Left Brand Title
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     EKantinLogoIcon(size = 36.dp)
                     Spacer(modifier = Modifier.width(8.dp))
@@ -168,7 +170,7 @@ fun StudentDashboardScreen(
                             color = BluePrimary
                         )
                         Text(
-                            text = "BERANDA",
+                            text = "SISWA",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = TextMuted,
@@ -177,15 +179,13 @@ fun StudentDashboardScreen(
                     }
                 }
 
-                // Right Action Icons
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = { Toast.makeText(context, "Pencarian Aktif", Toast.LENGTH_SHORT).show() }) {
                         Icon(imageVector = Icons.Default.Search, contentDescription = "Search", tint = TextPrimary)
                     }
 
-                    // Notification Bell with Active Indicator Dot
                     Box {
-                        IconButton(onClick = { Toast.makeText(context, "Notifikasi Kantin: 2 Pesanan Siap Diambil!", Toast.LENGTH_SHORT).show() }) {
+                        IconButton(onClick = { onNavigateToNotifications() }) {
                             Icon(imageVector = Icons.Default.Notifications, contentDescription = "Notify", tint = TextPrimary)
                         }
                         Box(
@@ -198,22 +198,24 @@ fun StudentDashboardScreen(
                         )
                     }
 
-                    // Profile Avatar
+                    // Profile / Logout Button for Demo
                     Box(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(BluePrimary)
-                            .clickable { },
+                            .background(Color(0xFFFEE2E2))
+                            .clickable {
+                                Toast.makeText(context, "Logout Berhasil", Toast.LENGTH_SHORT).show()
+                                onLogoutClick()
+                            },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(imageVector = Icons.Default.Person, contentDescription = "Profile", tint = Color.White, modifier = Modifier.size(20.dp))
+                        Icon(imageVector = Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = Color(0xFFDC2626), modifier = Modifier.size(18.dp))
                     }
                 }
             }
         },
         bottomBar = {
-            // Bottom Navigation Bar
             NavigationBar(
                 containerColor = Color.White,
                 tonalElevation = 8.dp
@@ -239,24 +241,12 @@ fun StudentDashboardScreen(
                     selected = selectedNavTab == 2,
                     onClick = {
                         selectedNavTab = 2
-                        Toast.makeText(context, "Daftar Stand Kantin SMKN 8", Toast.LENGTH_SHORT).show()
+                        onPointsClick() // Reuse points for profile/rewards tab for students
                     },
-                    icon = { Icon(imageVector = Icons.Default.Storefront, contentDescription = "Stand") },
-                    label = { Text("Stand", fontSize = 11.sp) },
+                    icon = { Icon(imageVector = Icons.Default.Person, contentDescription = "Profil") },
+                    label = { Text("Profil", fontSize = 11.sp) },
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = BluePrimary, selectedTextColor = BluePrimary, indicatorColor = BlueLightBg)
                 )
-                if (userRole == UserRole.ADMIN) {
-                    NavigationBarItem(
-                        selected = selectedNavTab == 3,
-                        onClick = {
-                            selectedNavTab = 3
-                            onNavigateToAdmin()
-                        },
-                        icon = { Icon(imageVector = Icons.Default.Widgets, contentDescription = "Admin") },
-                        label = { Text("Admin", fontSize = 11.sp) },
-                        colors = NavigationBarItemDefaults.colors(selectedIconColor = BluePrimary, selectedTextColor = BluePrimary, indicatorColor = BlueLightBg)
-                    )
-                }
             }
         }
     ) { innerPadding ->
@@ -425,12 +415,15 @@ fun StudentDashboardScreen(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // 4. Horizontal Category Filter Chips
-                val filterList = listOf("Semua", "Halal", "Favorit", "Di Bawah 15rb")
-                LazyRow(
+                // 4. Horizontal Category Filter Chips (Optimized Row)
+                val filterList = remember { listOf("Semua", "Halal", "Favorit", "Di Bawah 15rb") }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(filterScrollState),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(filterList) { filter ->
+                    filterList.forEach { filter ->
                         val isSelected = selectedFilter == filter
                         Box(
                             modifier = Modifier
@@ -489,11 +482,14 @@ fun StudentDashboardScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Horizontal Stand Cards
-                LazyRow(
+                // Horizontal Stand Cards (Optimized Row)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(standsScrollState),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(stands) { stand ->
+                    stands.forEach { stand ->
                         Card(
                             modifier = Modifier
                                 .width(150.dp)
