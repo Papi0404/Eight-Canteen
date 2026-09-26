@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -94,16 +96,17 @@ fun StudentRegisterScreen(
     var isLoading by remember { mutableStateOf(false) }
     var photoUploaded by remember { mutableStateOf(false) }
 
-    val classOptions = listOf(
-        "X RPL 1 (Rekayasa Perangkat Lunak)",
-        "X RPL 2 (Rekayasa Perangkat Lunak)",
-        "XI RPL 1 (Rekayasa Perangkat Lunak)",
-        "XI RPL 2 (Rekayasa Perangkat Lunak)",
-        "XII RPL 1 (Rekayasa Perangkat Lunak)",
-        "XII RPL 2 (Rekayasa Perangkat Lunak)",
-        "XI AKL 1 (Akuntansi Koperasi)",
-        "XI BDP 1 (Bisnis Digital & Pemasaran)"
-    )
+    val classOptions = remember {
+        val levels = listOf("X", "XI", "XII")
+        levels.flatMap { level ->
+            val majors = if (level == "XII") {
+                listOf("AK1", "AK2", "AK3", "MP", "MP2", "BD", "BR1", "BR2", "ULW", "RPL")
+            } else {
+                listOf("AK1", "AK2", "AK3", "MP", "ManLog", "BD", "BR1", "BR2", "ULW", "RPL")
+            }
+            majors.map { major -> "$level $major" }
+        }
+    }
 
     Scaffold(
         containerColor = ScreenBg,
@@ -112,6 +115,7 @@ fun StudentRegisterScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -410,6 +414,13 @@ fun StudentRegisterScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp)
+                        )
+
+                        // Transparent clickable overlay ensuring dropdown opens
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clip(RoundedCornerShape(12.dp))
                                 .clickable { isClassDropdownExpanded = true }
                         )
 
@@ -418,11 +429,19 @@ fun StudentRegisterScreen(
                             onDismissRequest = { isClassDropdownExpanded = false },
                             modifier = Modifier
                                 .fillMaxWidth(0.85f)
+                                .heightIn(max = 280.dp)
                                 .background(Color.White)
                         ) {
                             classOptions.forEach { cls ->
                                 DropdownMenuItem(
-                                    text = { Text(text = cls, fontSize = 13.sp) },
+                                    text = { 
+                                        Text(
+                                            text = cls, 
+                                            fontSize = 13.sp,
+                                            fontWeight = if (selectedClass == cls) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (selectedClass == cls) BluePrimary else TextPrimary
+                                        ) 
+                                    },
                                     onClick = {
                                         selectedClass = cls
                                         isClassDropdownExpanded = false
@@ -569,48 +588,7 @@ fun StudentRegisterScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // 5. Bonus Loyalty Points Card
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Color(0xFFFFEDD5))
-                    .border(1.dp, Color(0xFFFED7AA), RoundedCornerShape(18.dp))
-                    .padding(14.dp)
-            ) {
-                Row(verticalAlignment = Alignment.Top) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFEA580C)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = "🎁", fontSize = 18.sp)
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "BONUS PENDAFTAR BARU",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFFC2410C),
-                            letterSpacing = 0.5.sp
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Dapatkan langsung +5 Loyalty Poin setelah melengkapi profil untuk ditukar es teh / gorengan gratis!",
-                            fontSize = 11.sp,
-                            color = Color(0xFF9A3412),
-                            lineHeight = 15.sp
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // 6. Action Button: Mulai Jajan Sekarang!
             Button(
@@ -626,15 +604,23 @@ fun StudentRegisterScreen(
 
                     isLoading = true
                     coroutineScope.launch {
+                        val session = com.januarzidanetinendeng.eightcanteen.data.local.SessionManager.getInstance(context)
                         val repository = com.januarzidanetinendeng.eightcanteen.data.repository.CanteenRepository()
-                        val result = repository.register(name = fullName, role = "Siswa", nis = nisnNumber)
+                        val result = repository.register(
+                            name = fullName,
+                            role = "Siswa",
+                            nis = nisnNumber,
+                            studentClass = selectedClass
+                        )
                         isLoading = false
                         result.onSuccess { response ->
-                            val msg = response.message ?: "Pendaftaran Siswa Berhasil! +5 Loyalty Poin Ditambahkan!"
+                            val msg = response.message ?: "Pendaftaran Siswa Berhasil!"
                             Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            session.updateProfile(name = fullName, studentClass = selectedClass)
                             onRegisterSuccess(fullName, selectedClass)
                         }.onFailure { e ->
                             Toast.makeText(context, "Respon Server: ${e.message}", Toast.LENGTH_SHORT).show()
+                            session.updateProfile(name = fullName, studentClass = selectedClass)
                             onRegisterSuccess(fullName, selectedClass)
                         }
                     }

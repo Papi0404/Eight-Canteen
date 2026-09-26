@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -101,6 +102,7 @@ fun LoginScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -172,7 +174,7 @@ fun LoginScreen(
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Student Banner Illustration & School Tag
+            // 1. Student Banner Illustration
             StudentBannerIllustration()
 
             Spacer(modifier = Modifier.height(18.dp))
@@ -207,33 +209,6 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // ==========================================
-            // DEMO / TEST ACCOUNT INFO BOX
-            // ==========================================
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFFEF2F2))
-                    .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(12.dp))
-                    .padding(12.dp)
-            ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(imageVector = Icons.Default.Info, contentDescription = "Info", tint = Color(0xFFDC2626), modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "Nomor Dummy Untuk Uji Coba Role", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF991B1B))
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(text = "• Admin: Ketik 811-9999-0000", fontSize = 11.sp, color = Color(0xFFB91C1C))
-                    Text(text = "• Penjual (Stand): Ketik 822-9999-0000", fontSize = 11.sp, color = Color(0xFFB91C1C))
-                    Text(text = "• Siswa: Ketik nomor selain di atas", fontSize = 11.sp, color = Color(0xFFB91C1C))
-                }
-            }
-            // ==========================================
-
-            Spacer(modifier = Modifier.height(14.dp))
-
             // 3. Main WhatsApp Login Card
             Card(
                 modifier = Modifier
@@ -248,32 +223,6 @@ fun LoginScreen(
                         .fillMaxWidth()
                         .padding(18.dp)
                 ) {
-                    // Top Info Banner inside card
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(BlueLightCard)
-                            .padding(horizontal = 12.dp, vertical = 10.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.Top) {
-                            Text(
-                                text = "✨",
-                                fontSize = 14.sp
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Satu Pintu Masuk: Siswa, Guru, dan Penjual Kantin cukup gunakan nomor WhatsApp aktif.",
-                                fontSize = 12.sp,
-                                color = Color(0xFF1E40AF),
-                                lineHeight = 16.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
                     // Field Labels Row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -469,153 +418,7 @@ fun LoginScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 4. Secondary Card 1: Pengguna Baru? (Clickable to open Student Registration)
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        onNavigateToRegister()
-                    },
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, BorderColor)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFFEF3C7)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PersonAdd,
-                                contentDescription = "New User",
-                                tint = Color(0xFFD97706),
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Pengguna Baru?",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
-                            Text(
-                                text = "Akun dibuat otomatis dari NISN / NIK",
-                                fontSize = 11.sp,
-                                color = TextSecondary
-                            )
-                        }
-                    }
-
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = "Go",
-                        tint = TextMuted,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // 5. Secondary Card 2: Daftarkan Stand Kantin (Mitra Tenant)
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        onNavigateToStandRegister()
-                    },
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, BorderColor)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(CircleShape)
-                                .background(BlueLightBg),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Store,
-                                contentDescription = "New Stand",
-                                tint = BluePrimary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Daftarkan Stand Kantin?",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
-                            Text(
-                                text = "Formulir pendaftaran mitra tenant & penjual",
-                                fontSize = 11.sp,
-                                color = TextSecondary
-                            )
-                        }
-                    }
-
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = "Go",
-                        tint = TextMuted,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // 6. Admin / Petugas Portal Link
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { onNavigateToAdmin() }
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Lock,
-                    contentDescription = "Lock",
-                    tint = BluePrimary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Petugas Koperasi / Admin? Masuk Portal",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = BluePrimary,
-                    textDecoration = TextDecoration.Underline
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             // 7. Footer Info
             Text(

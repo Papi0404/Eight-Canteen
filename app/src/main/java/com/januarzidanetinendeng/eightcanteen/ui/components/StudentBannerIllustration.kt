@@ -43,32 +43,6 @@ fun StudentBannerIllustration(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Top Pill Chip: • SMKN 8 JAKARTA • E-KANTIN
-        Box(
-            modifier = Modifier
-                .padding(bottom = 12.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(BlueChipBg)
-                .padding(horizontal = 14.dp, vertical = 6.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(BluePrimary)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "SMKN 8 JAKARTA • E-KANTIN",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = BluePrimary,
-                    letterSpacing = 0.5.sp
-                )
-            }
-        }
-
         // Banner Card Box with Illustration
         Box(
             modifier = Modifier
@@ -142,53 +116,6 @@ fun StudentBannerIllustration(
                 )
                 // Boba straw
                 drawLine(Color(0xFF0284C7), start = Offset(w * 0.76f, h * 0.40f), end = Offset(w * 0.73f, h * 0.50f), strokeWidth = 6f)
-            }
-
-            // Floating Badge at bottom of Banner Illustration
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .offset(y = (-12).dp)
-                    .clip(RoundedCornerShape(30.dp))
-                    .background(Color.White.copy(alpha = 0.92f))
-                    .border(1.dp, Color(0x332563EB), RoundedCornerShape(30.dp))
-                    .padding(horizontal = 16.dp, vertical = 7.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "⚡",
-                        fontSize = 12.sp
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Pesan Cepat 10 Menit",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "|",
-                        fontSize = 12.sp,
-                        color = TextSecondary.copy(alpha = 0.5f)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFDBEAFE))
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = "Bebas Antre",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = BluePrimary
-                        )
-                    }
-                }
             }
         }
     }

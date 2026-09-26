@@ -116,6 +116,7 @@ fun QrScannerScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color.Black.copy(alpha = 0.6f))
+                    .statusBarsPadding()
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {

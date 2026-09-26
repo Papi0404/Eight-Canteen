@@ -35,6 +35,7 @@ import com.januarzidanetinendeng.eightcanteen.ui.profile.ProfileScreen
 import com.januarzidanetinendeng.eightcanteen.ui.register.StudentRegisterScreen
 import com.januarzidanetinendeng.eightcanteen.ui.seller.SellerDashboardScreen
 import com.januarzidanetinendeng.eightcanteen.ui.splash.SplashScreen
+import com.januarzidanetinendeng.eightcanteen.ui.stand.AllStandsScreen
 import com.januarzidanetinendeng.eightcanteen.ui.stand.StandRegisterScreen
 import com.januarzidanetinendeng.eightcanteen.ui.theme.EightCanteenTheme
 import kotlinx.coroutines.delay
@@ -48,6 +49,7 @@ enum class ScreenState {
     STAND_REGISTER,
     ADMIN_ADD_STAND,
     HOME_LOGGED_IN,
+    ALL_STANDS,
     ORDER_HISTORY,
     POINTS_REWARD,
     PROFILE,
@@ -170,11 +172,12 @@ fun MainAppNavigation(
             profileResult.onSuccess { res ->
                 val profile = res.data
                 if (profile != null) {
-                    val updatedName = profile.fullName ?: profile.name ?: cachedName
+                    val rawName = (profile.fullName ?: profile.name ?: cachedName).trim()
+                    val updatedName = if (rawName.equals("EMPTY", ignoreCase = true)) "Pengguna" else rawName
                     val updatedRole = profile.role ?: cachedRole
                     val updatedPhone = profile.phoneNumber ?: cachedPhone
                     val updatedPoints = profile.points ?: session.getPoints()
-                    val updatedClass = profile.studentClass ?: cachedClass
+                    val updatedClass = profile.resolvedClass ?: profile.studentClass ?: cachedClass
                     val updatedStandId = profile.stand?.id ?: session.getStandId()
                     val updatedStandName = profile.stand?.name ?: cachedStand
                     val updatedSlot = profile.stand?.counterSlot ?: cachedSlot
@@ -235,7 +238,7 @@ fun MainAppNavigation(
                 cartViewModel.clearCart()
                 currentScreen = ScreenState.HOME_LOGGED_IN
             }
-            ScreenState.POINTS_REWARD, ScreenState.PROFILE, ScreenState.NOTIFICATIONS -> currentScreen = ScreenState.HOME_LOGGED_IN
+            ScreenState.POINTS_REWARD, ScreenState.PROFILE, ScreenState.NOTIFICATIONS, ScreenState.ALL_STANDS -> currentScreen = ScreenState.HOME_LOGGED_IN
             ScreenState.SCAN_QR -> currentScreen = ScreenState.SELLER_DASHBOARD
             ScreenState.ADMIN_ADD_STAND -> currentScreen = ScreenState.ADMIN_DASHBOARD
             else -> {
@@ -333,7 +336,7 @@ fun MainAppNavigation(
                         role = "Siswa",
                         phone = userPhoneNumber,
                         standId = null,
-                        points = session.getPoints() + 5,
+                        points = session.getPoints(),
                         studentClass = className
                     )
                     currentScreen = ScreenState.HOME_LOGGED_IN
@@ -382,9 +385,12 @@ fun MainAppNavigation(
                 cartViewModel = cartViewModel,
                 studentName = studentName,
                 studentClass = studentClass,
-                loyaltyPoints = 25,
+                loyaltyPoints = SessionManager.getInstance(context).getPoints(),
                 onPointsClick = {
                     currentScreen = ScreenState.POINTS_REWARD
+                },
+                onProfileClick = {
+                    currentScreen = ScreenState.PROFILE
                 },
                 onLogoutClick = {
                     performLogout()
@@ -398,6 +404,20 @@ fun MainAppNavigation(
                 },
                 onNavigateToNotifications = {
                     currentScreen = ScreenState.NOTIFICATIONS
+                },
+                onSeeAllStandsClick = {
+                    currentScreen = ScreenState.ALL_STANDS
+                }
+            )
+        }
+
+        ScreenState.ALL_STANDS -> {
+            AllStandsScreen(
+                onBackClick = {
+                    currentScreen = ScreenState.HOME_LOGGED_IN
+                },
+                onStandClick = { standId, standName ->
+                    currentScreen = ScreenState.HOME_LOGGED_IN
                 }
             )
         }
@@ -429,7 +449,7 @@ fun MainAppNavigation(
             PointsRewardScreen(
                 studentName = studentName,
                 studentClass = studentClass.take(12),
-                currentPoints = 25,
+                currentPoints = SessionManager.getInstance(context).getPoints(),
                 onBackClick = {
                     currentScreen = ScreenState.HOME_LOGGED_IN
                 },

@@ -6,6 +6,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -34,6 +35,11 @@ interface ApiService {
     // ==========================================
     @GET("users/me")
     suspend fun getMyProfile(): BaseResponse<UserProfile>
+
+    @PUT("users/me")
+    suspend fun updateProfile(
+        @Body request: UpdateProfileRequest
+    ): BaseResponse<UserProfile>
 
     // ==========================================
     // 3. STAND & MENU ENDPOINTS
@@ -152,12 +158,26 @@ data class RegisterRequest(
     @SerializedName("name") val name: String,
     @SerializedName("role") val role: String, // "Siswa", "Penjual", "Admin"
     @SerializedName("nis") val nis: String? = null,
+    @SerializedName("className") val className: String? = null,
+    @SerializedName("studentClass") val studentClass: String? = null,
+    @SerializedName("class_name") val class_name: String? = null,
     @SerializedName("standName") val standName: String? = null
+)
+
+data class UpdateProfileRequest(
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("fullName") val fullName: String? = null,
+    @SerializedName("className") val className: String? = null,
+    @SerializedName("studentClass") val studentClass: String? = null,
+    @SerializedName("class_name") val class_name: String? = null,
+    @SerializedName("nis") val nis: String? = null
 )
 
 data class LoginResponseData(
     @SerializedName("token") val token: String,
-    @SerializedName("user") val user: UserProfile
+    @SerializedName("user") val user: UserProfile,
+    @SerializedName("isNewUser") val isNewUser: Boolean? = null,
+    @SerializedName("isProfileComplete") val isProfileComplete: Boolean? = null
 )
 
 data class UserProfile(
@@ -169,8 +189,14 @@ data class UserProfile(
     @SerializedName("points") val points: Int? = 0,
     @SerializedName("nis") val nis: String? = null,
     @SerializedName("studentClass") val studentClass: String? = null,
-    @SerializedName("stand") val stand: StandResponse? = null
-)
+    @SerializedName("className") val className: String? = null,
+    @SerializedName("class_name") val class_name: String? = null,
+    @SerializedName("stand") val stand: StandResponse? = null,
+    @SerializedName("isNewUser") val isNewUser: Boolean? = null,
+    @SerializedName("isProfileComplete") val isProfileComplete: Boolean? = null
+) {
+    val resolvedClass: String? get() = studentClass ?: className ?: class_name
+}
 
 // Stand & Menu Models
 data class StandResponse(

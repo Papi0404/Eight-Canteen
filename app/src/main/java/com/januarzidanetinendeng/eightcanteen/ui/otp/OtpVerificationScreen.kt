@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -118,6 +119,7 @@ fun OtpVerificationScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -347,15 +349,21 @@ fun OtpVerificationScreen(
                                 // Simpan JWT token ke SessionManager & ApiConfig
                                 val session = SessionManager.getInstance(context)
                                 session.saveAuthToken(loginData.token)
+                                val resolvedName = (loginData.user.fullName ?: loginData.user.name ?: "").trim()
+                                val effectiveName = if (resolvedName.equals("EMPTY", ignoreCase = true)) "" else resolvedName
+                                val effectiveRole = loginData.user.role ?: "Siswa"
+                                val effectiveClass = loginData.user.resolvedClass ?: session.getStudentClass()
+                                val effectiveNis = loginData.user.nis ?: session.getNis()
+
                                 session.saveUser(
                                     id = loginData.user.id,
-                                    name = loginData.user.fullName ?: loginData.user.name ?: "User",
-                                    role = loginData.user.role ?: "Siswa",
+                                    name = if (effectiveName.isBlank()) "Pengguna" else effectiveName,
+                                    role = effectiveRole,
                                     phone = cleanPhone,
                                     standId = loginData.user.stand?.id,
                                     points = loginData.user.points ?: 0,
-                                    studentClass = loginData.user.studentClass,
-                                    nis = loginData.user.nis,
+                                    studentClass = effectiveClass,
+                                    nis = effectiveNis,
                                     standName = loginData.user.stand?.name,
                                     counterSlot = loginData.user.stand?.counterSlot
                                 )

@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
@@ -22,6 +23,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -32,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +47,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.januarzidanetinendeng.eightcanteen.data.local.SessionManager
+import com.januarzidanetinendeng.eightcanteen.data.repository.CanteenRepository
 import com.januarzidanetinendeng.eightcanteen.ui.theme.BluePrimary
 import com.januarzidanetinendeng.eightcanteen.ui.theme.BorderColor
 import com.januarzidanetinendeng.eightcanteen.ui.theme.EightCanteenTheme
@@ -50,6 +57,7 @@ import com.januarzidanetinendeng.eightcanteen.ui.theme.ScreenBg
 import com.januarzidanetinendeng.eightcanteen.ui.theme.TextMuted
 import com.januarzidanetinendeng.eightcanteen.ui.theme.TextPrimary
 import com.januarzidanetinendeng.eightcanteen.ui.theme.TextSecondary
+import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileScreen(
@@ -61,17 +69,38 @@ fun ProfileScreen(
     onSaveSuccess: (String, String) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
     var nameInput by remember { mutableStateOf(currentName) }
-    var classInput by remember { mutableStateOf(currentClass) }
-    
+    var selectedClass by remember { mutableStateOf(currentClass) }
+    var isClassDropdownExpanded by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    val classOptions = remember {
+        val levels = listOf("X", "XI", "XII")
+        val generated = levels.flatMap { level ->
+            val majors = if (level == "XII") {
+                listOf("AK1", "AK2", "AK3", "MP", "MP2", "BD", "BR1", "BR2", "ULW", "RPL", "RPL 1", "RPL 2")
+            } else {
+                listOf("AK1", "AK2", "AK3", "MP", "ManLog", "BD", "BR1", "BR2", "ULW", "RPL", "RPL 1", "RPL 2")
+            }
+            majors.map { major -> "$level $major" }
+        }
+        if (currentClass.isNotBlank() && !generated.contains(currentClass)) {
+            listOf(currentClass) + generated
+        } else {
+            generated
+        }
+    }
+
     Scaffold(
         containerColor = ScreenBg,
         topBar = {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .statusBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -189,23 +218,78 @@ fun ProfileScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Class Input
+                    // Class Dropdown Input
                     Text(text = "Kelas / Jurusan", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                     Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedTextField(
-                        value = classInput,
-                        onValueChange = { classInput = it },
-                        singleLine = true,
-                        leadingIcon = { Icon(imageVector = Icons.Default.School, contentDescription = "Class", tint = TextSecondary) },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = InputBg,
-                            unfocusedContainerColor = InputBg,
-                            focusedBorderColor = BluePrimary,
-                            unfocusedBorderColor = BorderColor
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = selectedClass,
+                            onValueChange = {},
+                            readOnly = true,
+                            placeholder = { Text("Pilih Kelas & Jurusan", fontSize = 14.sp, color = TextMuted) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.School,
+                                    contentDescription = "Class",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            trailingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = "Dropdown",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = InputBg,
+                                unfocusedContainerColor = InputBg,
+                                focusedBorderColor = BluePrimary,
+                                unfocusedBorderColor = BorderColor
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp)
+                        )
+
+                        // Transparent clickable overlay ensuring dropdown opens
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { isClassDropdownExpanded = true }
+                        )
+
+                        DropdownMenu(
+                            expanded = isClassDropdownExpanded,
+                            onDismissRequest = { isClassDropdownExpanded = false },
+                            modifier = Modifier
+                                .fillMaxWidth(0.85f)
+                                .heightIn(max = 280.dp)
+                                .background(Color.White)
+                        ) {
+                            classOptions.forEach { cls ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = cls,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (cls == selectedClass) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (cls == selectedClass) BluePrimary else TextPrimary
+                                        )
+                                    },
+                                    onClick = {
+                                        selectedClass = cls
+                                        isClassDropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -237,26 +321,76 @@ fun ProfileScreen(
             // Save Button
             Button(
                 onClick = {
-                    if (nameInput.isNotBlank() && classInput.isNotBlank()) {
-                        Toast.makeText(context, "Profil Berhasil Diperbarui!", Toast.LENGTH_SHORT).show()
-                        onSaveSuccess(nameInput, classInput)
-                    } else {
-                        Toast.makeText(context, "Nama dan Kelas tidak boleh kosong!", Toast.LENGTH_SHORT).show()
+                    val cleanName = nameInput.trim()
+                    val cleanClass = selectedClass.trim()
+
+                    if (cleanName.isBlank()) {
+                        Toast.makeText(context, "Nama lengkap tidak boleh kosong!", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    if (cleanClass.isBlank()) {
+                        Toast.makeText(context, "Pilih kelas terlebih dahulu!", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    isLoading = true
+                    coroutineScope.launch {
+                        val session = SessionManager.getInstance(context)
+                        val repository = CanteenRepository()
+
+                        val result = repository.updateProfile(
+                            name = cleanName,
+                            studentClass = cleanClass,
+                            nis = session.getNis()
+                        )
+
+                        isLoading = false
+                        result.onSuccess { response ->
+                            Toast.makeText(context, response.message ?: "Profil Berhasil Diperbarui!", Toast.LENGTH_SHORT).show()
+                            session.updateProfile(name = cleanName, studentClass = cleanClass)
+                            onSaveSuccess(cleanName, cleanClass)
+                        }.onFailure { err ->
+                            // Fallback jika endpoint PUT /users/me perlu bantuan register endpoint
+                            val regResult = repository.register(
+                                name = cleanName,
+                                role = session.getUserRole(),
+                                nis = session.getNis(),
+                                studentClass = cleanClass
+                            )
+                            regResult.onSuccess { regRes ->
+                                Toast.makeText(context, regRes.message ?: "Profil Berhasil Diperbarui!", Toast.LENGTH_SHORT).show()
+                                session.updateProfile(name = cleanName, studentClass = cleanClass)
+                                onSaveSuccess(cleanName, cleanClass)
+                            }.onFailure {
+                                Toast.makeText(context, "Gagal memperbarui profil: ${err.message}", Toast.LENGTH_LONG).show()
+                                session.updateProfile(name = cleanName, studentClass = cleanClass)
+                                onSaveSuccess(cleanName, cleanClass)
+                            }
+                        }
                     }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
+                enabled = !isLoading,
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = BluePrimary,
                     contentColor = Color.White
                 )
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(imageVector = Icons.Default.Save, contentDescription = "Save", modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Simpan Perubahan", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = Color.White,
+                        strokeWidth = 2.5.dp
+                    )
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(imageVector = Icons.Default.Save, contentDescription = "Save", modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Simpan Perubahan", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }

@@ -100,14 +100,14 @@ class SessionManager(context: Context) {
     }
 
     fun isProfileComplete(): Boolean {
-        val name = getUserName()
-        if (name.isBlank() || name.equals("Pengguna", ignoreCase = true) || name.equals("User", ignoreCase = true)) {
+        val name = getUserName().trim()
+        if (name.isBlank() || 
+            name.equals("Pengguna", ignoreCase = true) || 
+            name.equals("User", ignoreCase = true) ||
+            name.equals("Pengguna Baru", ignoreCase = true) ||
+            name.equals("EMPTY", ignoreCase = true)
+        ) {
             return false
-        }
-        val role = getUserRole().lowercase()
-        if (role == "siswa" || role == "student") {
-            val studentClass = getStudentClass()
-            return !studentClass.isNullOrBlank()
         }
         return true
     }

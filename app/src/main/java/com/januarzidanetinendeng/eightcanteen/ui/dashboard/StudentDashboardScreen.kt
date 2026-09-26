@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -107,21 +108,39 @@ data class MenuItem(
     val tag: String?,
     val tagColor: Color?,
     val foodEmoji: String,
-    val standId: String? = null
+    val standId: String? = null,
+    val category: String = "Makanan"
 )
+
+private fun classifyMenuCategory(name: String, standCategory: String?): String {
+    if (!standCategory.isNullOrBlank()) {
+        val sc = standCategory.trim().lowercase()
+        if (sc == "minuman" || sc.contains("drink") || sc.contains("beverage")) return "Minuman"
+        if (sc == "makanan" || sc.contains("food")) return "Makanan"
+    }
+    val n = name.lowercase()
+    val isDrink = n.contains("jus") || n.contains("juice") || n.contains("teh") ||
+            n.contains("tea") || n.contains("kopi") || n.contains("coffee") ||
+            n.contains("es ") || n.contains("boba") || n.contains("drink") ||
+            n.contains("air") || n.contains("smoothie") || n.contains("susu") ||
+            n.contains("lemon") || n.contains("cincau") || n.contains("syrup")
+    return if (isDrink) "Minuman" else "Makanan"
+}
 
 @Composable
 fun StudentDashboardScreen(
     cartViewModel: CartViewModel = remember { CartViewModel() },
     studentName: String = "Dimas Pratama",
     studentClass: String = "XII RPL 2 • SMKN 8",
-    loyaltyPoints: Int = 25,
+    loyaltyPoints: Int = 0,
     initialNavTab: Int = 0,
     onPointsClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
     onCheckoutClick: () -> Unit = {},
     onOrderClick: (orderId: String) -> Unit = {},
-    onNavigateToNotifications: () -> Unit = {}
+    onNavigateToNotifications: () -> Unit = {},
+    onSeeAllStandsClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
@@ -144,6 +163,11 @@ fun StudentDashboardScreen(
     var currentStudentClass by remember { mutableStateOf(studentClass) }
     var currentLoyaltyPoints by remember { mutableIntStateOf(loyaltyPoints) }
 
+    LaunchedEffect(studentName, studentClass) {
+        currentStudentName = studentName
+        currentStudentClass = studentClass
+    }
+
     val defaultStands = remember {
         listOf(
             StandItem("bf7b8db5-ce1c-4692-9dd9-e2e05d4a64dc", "Kebab Bang Jago", "4.8", "Stand 01 • Buka", false, "🥙"),
@@ -154,11 +178,11 @@ fun StudentDashboardScreen(
 
     val defaultMenuItems = remember {
         listOf(
-            MenuItem("8541903e-5518-4b3c-85e5-721513ae1c49", "Kebab Daging Spesial", "Kebab Bang Jago", 15000, 14, "10 mnt", "Favorit", Color(0xFFFEF3C7), "🥙", "bf7b8db5-ce1c-4692-9dd9-e2e05d4a64dc"),
-            MenuItem("5a1e4ab5-da9d-405a-9a4f-345a659c50e3", "Ketoprak Telur", "Kebab Bang Jago", 12000, 15, "15 mnt", null, null, "🍲", "bf7b8db5-ce1c-4692-9dd9-e2e05d4a64dc"),
-            MenuItem("6b05c4ca-d73b-48c1-913b-d7658b45feb5", "Es Teh Segar", "Kebab Bang Jago", 5000, 49, "Cepat", null, null, "🧋", "bf7b8db5-ce1c-4692-9dd9-e2e05d4a64dc"),
-            MenuItem("41bd2026-8588-4272-8427-bdf37fbed5cf", "Jus Jeruk", "Jus Buah Bang Ijul", 5000, 50, "5 mnt", null, null, "🍹", "4376f549-c300-46fa-a6bc-00bf9c011709"),
-            MenuItem("be92805b-bb6f-465f-a81f-32efcfa45229", "Jus Mangga", "Jus Buah Bang Ijul", 12000, 15, "8 mnt", null, null, "🥭", "4376f549-c300-46fa-a6bc-00bf9c011709")
+            MenuItem("8541903e-5518-4b3c-85e5-721513ae1c49", "Kebab Daging Spesial", "Kebab Bang Jago", 15000, 14, "10 mnt", "Favorit", Color(0xFFFEF3C7), "🥙", "bf7b8db5-ce1c-4692-9dd9-e2e05d4a64dc", "Makanan"),
+            MenuItem("5a1e4ab5-da9d-405a-9a4f-345a659c50e3", "Ketoprak Telur", "Kebab Bang Jago", 12000, 15, "15 mnt", null, null, "🍲", "bf7b8db5-ce1c-4692-9dd9-e2e05d4a64dc", "Makanan"),
+            MenuItem("6b05c4ca-d73b-48c1-913b-d7658b45feb5", "Es Teh Segar", "Kebab Bang Jago", 5000, 49, "Cepat", null, null, "🧋", "bf7b8db5-ce1c-4692-9dd9-e2e05d4a64dc", "Minuman"),
+            MenuItem("41bd2026-8588-4272-8427-bdf37fbed5cf", "Jus Jeruk", "Jus Buah Bang Ijul", 5000, 50, "5 mnt", null, null, "🍹", "4376f549-c300-46fa-a6bc-00bf9c011709", "Minuman"),
+            MenuItem("be92805b-bb6f-465f-a81f-32efcfa45229", "Jus Mangga", "Jus Buah Bang Ijul", 12000, 15, "8 mnt", null, null, "🥭", "4376f549-c300-46fa-a6bc-00bf9c011709", "Minuman")
         )
     }
 
@@ -171,16 +195,14 @@ fun StudentDashboardScreen(
         if (session.getUserName().isNotBlank() && session.getUserName() != "Pengguna") {
             currentStudentName = session.getUserName()
         }
-        if (session.getPoints() > 0) {
-            currentLoyaltyPoints = session.getPoints()
-        }
+        currentLoyaltyPoints = session.getPoints()
 
         // 1. Fetch User Profile
         repository.getMyProfile().onSuccess { res ->
             res.data?.let { profile ->
                 profile.fullName?.takeIf { it.isNotBlank() }?.let { currentStudentName = it }
                     ?: profile.name?.takeIf { it.isNotBlank() }?.let { currentStudentName = it }
-                profile.studentClass?.takeIf { it.isNotBlank() }?.let { currentStudentClass = it }
+                profile.resolvedClass?.takeIf { it.isNotBlank() }?.let { currentStudentClass = it }
                 profile.points?.let {
                     currentLoyaltyPoints = it
                     session.updatePoints(it)
@@ -195,7 +217,7 @@ fun StudentDashboardScreen(
                     StandItem(
                         id = stand.id,
                         name = stand.name,
-                        rating = String.format(Locale.US, "%.1f", stand.rating ?: 4.8),
+                        rating = "",
                         distanceOrTime = "${stand.counterSlot ?: "Stand"} • ${if (stand.isOpen) "Buka" else "Tutup"}",
                         isBusy = false,
                         foodEmoji = when {
@@ -215,6 +237,7 @@ fun StudentDashboardScreen(
         repository.getAllMenus().onSuccess { res ->
             res.data?.takeIf { it.isNotEmpty() }?.let { apiMenus ->
                 menuItems = apiMenus.map { menu ->
+                    val resolvedCategory = classifyMenuCategory(menu.name, menu.stands?.category)
                     MenuItem(
                         id = menu.id,
                         name = menu.name,
@@ -234,7 +257,8 @@ fun StudentDashboardScreen(
                             menu.name.contains("Jus", true) -> "🍹"
                             else -> "🍛"
                         },
-                        standId = menu.standId ?: menu.stands?.id
+                        standId = menu.standId ?: menu.stands?.id,
+                        category = resolvedCategory
                     )
                 }
             }
@@ -247,9 +271,8 @@ fun StudentDashboardScreen(
                 item.name.contains(searchQuery, ignoreCase = true) ||
                 item.standName.contains(searchQuery, ignoreCase = true)
             val matchesFilter = when (selectedFilter) {
-                "Halal" -> true
-                "Favorit" -> item.tag != null || item.stock > 5
-                "Di Bawah 15rb" -> item.price <= 15000
+                "Makanan" -> item.category.equals("Makanan", ignoreCase = true)
+                "Minuman" -> item.category.equals("Minuman", ignoreCase = true)
                 else -> true
             }
             matchesQuery && matchesFilter
@@ -263,6 +286,7 @@ fun StudentDashboardScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .statusBarsPadding()
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -349,7 +373,7 @@ fun StudentDashboardScreen(
                     selected = selectedNavTab == 2,
                     onClick = {
                         selectedNavTab = 2
-                        onPointsClick() // Reuse points for profile/rewards tab for students
+                        onProfileClick()
                     },
                     icon = { Icon(imageVector = Icons.Default.Person, contentDescription = "Profil") },
                     label = { Text("Profil", fontSize = 11.sp) },
@@ -383,7 +407,10 @@ fun StudentDashboardScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { onProfileClick() }
+                    ) {
                         Box(
                             modifier = Modifier
                                 .size(44.dp)
@@ -518,6 +545,7 @@ fun StudentDashboardScreen(
                     trailingIcon = { Icon(imageVector = Icons.Default.Mic, contentDescription = "Mic", tint = BluePrimary) },
                     singleLine = true,
                     shape = RoundedCornerShape(22.dp),
+                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = TextPrimary),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = InputBg,
                         unfocusedContainerColor = InputBg,
@@ -526,13 +554,13 @@ fun StudentDashboardScreen(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
+                        .height(56.dp)
                 )
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // 4. Horizontal Category Filter Chips (Optimized Row)
-                val filterList = remember { listOf("Semua", "Halal", "Favorit", "Di Bawah 15rb") }
+                // 4. Horizontal Category Filter Chips (Makanan & Minuman)
+                val filterList = remember { listOf("Semua", "Makanan", "Minuman") }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -547,13 +575,14 @@ fun StudentDashboardScreen(
                                 .background(if (isSelected) BluePrimary else Color.White)
                                 .border(1.dp, if (isSelected) BluePrimary else BorderColor, RoundedCornerShape(20.dp))
                                 .clickable { selectedFilter = filter }
-                                .padding(horizontal = 14.dp, vertical = 7.dp)
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (filter == "Semua") Text(text = "⚽ ", fontSize = 11.sp)
-                                else if (filter == "Halal") Text(text = "✓ ", fontSize = 11.sp, color = Color(0xFF059669))
-                                else if (filter == "Favorit") Text(text = "♡ ", fontSize = 11.sp, color = Color(0xFFE11D48))
-                                else if (filter == "Di Bawah 15rb") Text(text = "🏷️ ", fontSize = 11.sp)
+                                when (filter) {
+                                    "Semua" -> Text(text = "🍽️ ", fontSize = 12.sp)
+                                    "Makanan" -> Text(text = "🍱 ", fontSize = 12.sp)
+                                    "Minuman" -> Text(text = "🍹 ", fontSize = 12.sp)
+                                }
 
                                 Text(
                                     text = filter,
@@ -568,37 +597,26 @@ fun StudentDashboardScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // 5. Stand Favorit Section
+                // 5. Daftar Stand Section
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "Stand Favorit", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFFFEF3C7))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(text = "Laris", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFFB45309))
-                        }
-                    }
+                    Text(text = "Daftar Stand", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
 
                     Text(
                         text = "Lihat Semua >",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = BluePrimary,
-                        modifier = Modifier.clickable { Toast.makeText(context, "Membuka Semua Stand", Toast.LENGTH_SHORT).show() }
+                        modifier = Modifier.clickable { onSeeAllStandsClick() }
                     )
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Horizontal Stand Cards (Optimized Row)
+                // Horizontal Stand Cards (Tanpa Rating)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -626,21 +644,6 @@ fun StudentDashboardScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(text = stand.foodEmoji, fontSize = 42.sp)
-
-                                    // Rating Badge
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.TopStart)
-                                            .padding(6.dp)
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(Color.White.copy(alpha = 0.9f))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(text = "⭐ ", fontSize = 10.sp)
-                                            Text(text = stand.rating, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                                        }
-                                    }
 
                                     if (stand.isBusy) {
                                         Box(

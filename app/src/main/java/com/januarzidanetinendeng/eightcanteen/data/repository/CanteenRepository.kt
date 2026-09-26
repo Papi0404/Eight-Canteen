@@ -53,13 +53,46 @@ class CanteenRepository(
         api.verifyOtp(VerifyOtpRequest(phoneNumber.replace("-", "").trim(), otp.trim()))
     }
 
-    suspend fun register(name: String, role: String, nis: String? = null, standName: String? = null): Result<BaseResponse<UserProfile>> = safeApiCall {
-        api.register(RegisterRequest(name = name, role = role, nis = nis, standName = standName))
+    suspend fun register(
+        name: String,
+        role: String,
+        nis: String? = null,
+        studentClass: String? = null,
+        standName: String? = null
+    ): Result<BaseResponse<UserProfile>> = safeApiCall {
+        api.register(
+            RegisterRequest(
+                name = name,
+                role = role,
+                nis = nis,
+                className = studentClass,
+                studentClass = studentClass,
+                class_name = studentClass,
+                standName = standName
+            )
+        )
     }
 
     // 2. User Profile
     suspend fun getMyProfile(): Result<BaseResponse<UserProfile>> = safeApiCall {
         api.getMyProfile()
+    }
+
+    suspend fun updateProfile(
+        name: String,
+        studentClass: String? = null,
+        nis: String? = null
+    ): Result<BaseResponse<UserProfile>> = safeApiCall {
+        api.updateProfile(
+            UpdateProfileRequest(
+                name = name,
+                fullName = name,
+                className = studentClass,
+                studentClass = studentClass,
+                class_name = studentClass,
+                nis = nis
+            )
+        )
     }
 
     // 3. Stands & Menus
