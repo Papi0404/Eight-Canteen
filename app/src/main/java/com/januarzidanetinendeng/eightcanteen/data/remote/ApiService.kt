@@ -6,7 +6,6 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
-import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -36,7 +35,7 @@ interface ApiService {
     @GET("users/me")
     suspend fun getMyProfile(): BaseResponse<UserProfile>
 
-    @PUT("users/me")
+    @PATCH("users/me")
     suspend fun updateProfile(
         @Body request: UpdateProfileRequest
     ): BaseResponse<UserProfile>
@@ -164,15 +163,6 @@ data class RegisterRequest(
     @SerializedName("standName") val standName: String? = null
 )
 
-data class UpdateProfileRequest(
-    @SerializedName("name") val name: String? = null,
-    @SerializedName("fullName") val fullName: String? = null,
-    @SerializedName("className") val className: String? = null,
-    @SerializedName("studentClass") val studentClass: String? = null,
-    @SerializedName("class_name") val class_name: String? = null,
-    @SerializedName("nis") val nis: String? = null
-)
-
 data class LoginResponseData(
     @SerializedName("token") val token: String,
     @SerializedName("user") val user: UserProfile,
@@ -197,6 +187,15 @@ data class UserProfile(
 ) {
     val resolvedClass: String? get() = studentClass ?: className ?: class_name
 }
+
+data class UpdateProfileRequest(
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("fullName") val fullName: String? = null,
+    @SerializedName("className") val className: String? = null,
+    @SerializedName("studentClass") val studentClass: String? = null,
+    @SerializedName("class_name") val class_name: String? = null,
+    @SerializedName("nis") val nis: String? = null
+)
 
 // Stand & Menu Models
 data class StandResponse(

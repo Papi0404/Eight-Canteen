@@ -135,12 +135,12 @@ fun StudentDashboardScreen(
     loyaltyPoints: Int = 0,
     initialNavTab: Int = 0,
     onPointsClick: () -> Unit = {},
-    onProfileClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
     onCheckoutClick: () -> Unit = {},
     onOrderClick: (orderId: String) -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
-    onSeeAllStandsClick: () -> Unit = {}
+    onSeeAllStandsClick: () -> Unit = {},
+    onStandClick: (standId: String, standName: String) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
@@ -162,11 +162,6 @@ fun StudentDashboardScreen(
     var currentStudentName by remember { mutableStateOf(studentName) }
     var currentStudentClass by remember { mutableStateOf(studentClass) }
     var currentLoyaltyPoints by remember { mutableIntStateOf(loyaltyPoints) }
-
-    LaunchedEffect(studentName, studentClass) {
-        currentStudentName = studentName
-        currentStudentClass = studentClass
-    }
 
     val defaultStands = remember {
         listOf(
@@ -200,9 +195,15 @@ fun StudentDashboardScreen(
         // 1. Fetch User Profile
         repository.getMyProfile().onSuccess { res ->
             res.data?.let { profile ->
-                profile.fullName?.takeIf { it.isNotBlank() }?.let { currentStudentName = it }
-                    ?: profile.name?.takeIf { it.isNotBlank() }?.let { currentStudentName = it }
-                profile.resolvedClass?.takeIf { it.isNotBlank() }?.let { currentStudentClass = it }
+                val fetchedName = (profile.fullName ?: profile.name)?.trim()
+                if (!fetchedName.isNullOrBlank() && !fetchedName.equals("EMPTY", ignoreCase = true) && !fetchedName.equals("Pengguna", ignoreCase = true)) {
+                    currentStudentName = fetchedName
+                }
+                val fetchedClass = (profile.resolvedClass ?: profile.studentClass ?: profile.className)?.trim()
+                if (!fetchedClass.isNullOrBlank()) {
+                    currentStudentClass = fetchedClass
+                }
+                session.updateProfile(name = currentStudentName, studentClass = currentStudentClass)
                 profile.points?.let {
                     currentLoyaltyPoints = it
                     session.updatePoints(it)
@@ -373,7 +374,7 @@ fun StudentDashboardScreen(
                     selected = selectedNavTab == 2,
                     onClick = {
                         selectedNavTab = 2
-                        onProfileClick()
+                        onPointsClick() // Reuse points for profile/rewards tab for students
                     },
                     icon = { Icon(imageVector = Icons.Default.Person, contentDescription = "Profil") },
                     label = { Text("Profil", fontSize = 11.sp) },
@@ -407,10 +408,7 @@ fun StudentDashboardScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { onProfileClick() }
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
                                 .size(44.dp)
@@ -628,7 +626,7 @@ fun StudentDashboardScreen(
                             modifier = Modifier
                                 .width(150.dp)
                                 .clickable {
-                                    Toast.makeText(context, "Membuka menu ${stand.name}", Toast.LENGTH_SHORT).show()
+                                    onStandClick(stand.id, stand.name)
                                 },
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = Color.White),

@@ -13,7 +13,7 @@ class EightCanteenApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        instance = this
+        instance = this 
         // Inisialisasi ApiConfig dengan Application Context dan load JWT token jika tersimpan
         ApiConfig.init(this)
     }

@@ -85,12 +85,12 @@ class CanteenRepository(
     ): Result<BaseResponse<UserProfile>> = safeApiCall {
         api.updateProfile(
             UpdateProfileRequest(
-                name = name,
-                fullName = name,
-                className = studentClass,
-                studentClass = studentClass,
-                class_name = studentClass,
-                nis = nis
+                name = name.trim(),
+                fullName = name.trim(),
+                className = studentClass?.trim(),
+                studentClass = studentClass?.trim(),
+                class_name = studentClass?.trim(),
+                nis = nis?.trim()
             )
         )
     }

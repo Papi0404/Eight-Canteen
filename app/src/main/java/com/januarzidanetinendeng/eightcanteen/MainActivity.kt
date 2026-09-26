@@ -36,6 +36,7 @@ import com.januarzidanetinendeng.eightcanteen.ui.register.StudentRegisterScreen
 import com.januarzidanetinendeng.eightcanteen.ui.seller.SellerDashboardScreen
 import com.januarzidanetinendeng.eightcanteen.ui.splash.SplashScreen
 import com.januarzidanetinendeng.eightcanteen.ui.stand.AllStandsScreen
+import com.januarzidanetinendeng.eightcanteen.ui.stand.StandMenuScreen
 import com.januarzidanetinendeng.eightcanteen.ui.stand.StandRegisterScreen
 import com.januarzidanetinendeng.eightcanteen.ui.theme.EightCanteenTheme
 import kotlinx.coroutines.delay
@@ -50,6 +51,7 @@ enum class ScreenState {
     ADMIN_ADD_STAND,
     HOME_LOGGED_IN,
     ALL_STANDS,
+    STAND_MENU,
     ORDER_HISTORY,
     POINTS_REWARD,
     PROFILE,
@@ -93,12 +95,16 @@ fun MainAppNavigation(
     var lastCreatedOrderId by remember { mutableStateOf<String?>(null) }
     
     // Student Data
-    var studentName by remember { mutableStateOf("Dimas Pratama") }
-    var studentClass by remember { mutableStateOf("XII RPL 2 • SMKN 8") }
+    var studentName by remember { mutableStateOf(SessionManager.getInstance(context).getUserName().takeIf { it.isNotBlank() && !it.equals("Pengguna", true) } ?: "Pengguna") }
+    var studentClass by remember { mutableStateOf(SessionManager.getInstance(context).getStudentClass() ?: "") }
     
     // Seller Data
     var sellerStandName by remember { mutableStateOf("Kebab Bang Ali") }
     var sellerCounterSlot by remember { mutableStateOf("Stand 04") }
+
+    // Stand Selection Data
+    var selectedStandId by remember { mutableStateOf<String?>(null) }
+    var selectedStandName by remember { mutableStateOf<String?>(null) }
 
     fun performLogout() {
         val session = SessionManager.getInstance(context)
@@ -106,8 +112,8 @@ fun MainAppNavigation(
         ApiConfig.setAuthToken(null)
         cartViewModel.clearCart()
         userPhoneNumber = ""
-        studentName = "Dimas Pratama"
-        studentClass = "XII RPL 2 • SMKN 8"
+        studentName = ""
+        studentClass = ""
         sellerStandName = "Kebab Bang Ali"
         sellerCounterSlot = "Stand 04"
         currentUserRole = UserRole.STUDENT
@@ -155,7 +161,7 @@ fun MainAppNavigation(
             val cachedPhone = session.getUserPhone()
             val cachedName = session.getUserName()
             val cachedRole = session.getUserRole()
-            val cachedClass = session.getStudentClass() ?: "XII RPL 2 • SMKN 8"
+            val cachedClass = session.getStudentClass() ?: ""
             val cachedStand = session.getStandName() ?: "Kebab Bang Ali"
             val cachedSlot = session.getCounterSlot() ?: "Stand 04"
 
@@ -177,7 +183,7 @@ fun MainAppNavigation(
                     val updatedRole = profile.role ?: cachedRole
                     val updatedPhone = profile.phoneNumber ?: cachedPhone
                     val updatedPoints = profile.points ?: session.getPoints()
-                    val updatedClass = profile.resolvedClass ?: profile.studentClass ?: cachedClass
+                    val updatedClass = (profile.resolvedClass ?: profile.studentClass ?: profile.className ?: cachedClass).trim()
                     val updatedStandId = profile.stand?.id ?: session.getStandId()
                     val updatedStandName = profile.stand?.name ?: cachedStand
                     val updatedSlot = profile.stand?.counterSlot ?: cachedSlot
@@ -239,6 +245,7 @@ fun MainAppNavigation(
                 currentScreen = ScreenState.HOME_LOGGED_IN
             }
             ScreenState.POINTS_REWARD, ScreenState.PROFILE, ScreenState.NOTIFICATIONS, ScreenState.ALL_STANDS -> currentScreen = ScreenState.HOME_LOGGED_IN
+            ScreenState.STAND_MENU -> currentScreen = ScreenState.ALL_STANDS
             ScreenState.SCAN_QR -> currentScreen = ScreenState.SELLER_DASHBOARD
             ScreenState.ADMIN_ADD_STAND -> currentScreen = ScreenState.ADMIN_DASHBOARD
             else -> {
@@ -389,9 +396,6 @@ fun MainAppNavigation(
                 onPointsClick = {
                     currentScreen = ScreenState.POINTS_REWARD
                 },
-                onProfileClick = {
-                    currentScreen = ScreenState.PROFILE
-                },
                 onLogoutClick = {
                     performLogout()
                 },
@@ -407,6 +411,11 @@ fun MainAppNavigation(
                 },
                 onSeeAllStandsClick = {
                     currentScreen = ScreenState.ALL_STANDS
+                },
+                onStandClick = { standId, standName ->
+                    selectedStandId = standId
+                    selectedStandName = standName
+                    currentScreen = ScreenState.STAND_MENU
                 }
             )
         }
@@ -417,7 +426,23 @@ fun MainAppNavigation(
                     currentScreen = ScreenState.HOME_LOGGED_IN
                 },
                 onStandClick = { standId, standName ->
-                    currentScreen = ScreenState.HOME_LOGGED_IN
+                    selectedStandId = standId
+                    selectedStandName = standName
+                    currentScreen = ScreenState.STAND_MENU
+                }
+            )
+        }
+
+        ScreenState.STAND_MENU -> {
+            StandMenuScreen(
+                cartViewModel = cartViewModel,
+                standId = selectedStandId ?: "",
+                standName = selectedStandName ?: "Stand Kantin",
+                onBackClick = {
+                    currentScreen = ScreenState.ALL_STANDS
+                },
+                onCheckoutClick = {
+                    currentScreen = ScreenState.CHECKOUT
                 }
             )
         }
