@@ -44,10 +44,12 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +63,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.januarzidanetinendeng.eightcanteen.data.local.SessionManager
+import com.januarzidanetinendeng.eightcanteen.data.repository.CanteenRepository
 import com.januarzidanetinendeng.eightcanteen.ui.components.EKantinLogoIcon
 import com.januarzidanetinendeng.eightcanteen.ui.components.ShieldCheckIcon
 import com.januarzidanetinendeng.eightcanteen.ui.theme.BlueChipBg
@@ -73,6 +77,7 @@ import com.januarzidanetinendeng.eightcanteen.ui.theme.ScreenBg
 import com.januarzidanetinendeng.eightcanteen.ui.theme.TextMuted
 import com.januarzidanetinendeng.eightcanteen.ui.theme.TextPrimary
 import com.januarzidanetinendeng.eightcanteen.ui.theme.TextSecondary
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 data class SellerMenuItem(
@@ -98,11 +103,18 @@ fun SellerDashboardScreen(
     onLogoutClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
     var isStoreOpen by remember { mutableStateOf(true) }
     var showNewOrderAlert by remember { mutableStateOf(true) }
     var selectedNavTab by remember { mutableIntStateOf(0) } // Stand tab active (beranda)
+
+    var currentTodayIncome by remember { mutableIntStateOf(todayIncome) }
+    var currentCompletedOrders by remember { mutableIntStateOf(completedOrders) }
+    var currentActiveQueueCount by remember { mutableIntStateOf(activeQueueCount) }
+    var currentReadyCount by remember { mutableIntStateOf(readyCount) }
+    var currentCookingCount by remember { mutableIntStateOf(cookingCount) }
 
     // Managed stock list state
     var menuList by remember {
@@ -114,6 +126,62 @@ fun SellerDashboardScreen(
                 SellerMenuItem("4", "Roti Maryam Coklat", 8000, 9, true, "🫓")
             )
         )
+    }
+
+    val repository = remember { CanteenRepository() }
+
+    LaunchedEffect(Unit) {
+        val session = SessionManager.getInstance(context)
+        val sellerStandId = session.getStandId()
+
+        // 1. Fetch Orders for stats
+        repository.getOrders().onSuccess { res ->
+            res.data?.let { orders ->
+                if (orders.isNotEmpty()) {
+                    val completed = orders.filter { it.status == "COMPLETED" }
+                    val ready = orders.filter { it.status == "READY" }
+                    val cooking = orders.filter { it.status == "COOKING" || it.status == "PENDING" }
+                    val totalIncome = completed.sumOf { it.totalAmount ?: 0 }
+
+                    if (completed.isNotEmpty()) {
+                        currentCompletedOrders = completed.size
+                        currentTodayIncome = totalIncome
+                    }
+                    currentReadyCount = ready.size
+                    currentCookingCount = cooking.size
+                    currentActiveQueueCount = ready.size + cooking.size
+                }
+            }
+        }
+
+        // 2. Fetch Stand Menus
+        val menusResult = if (!sellerStandId.isNullOrBlank()) {
+            repository.getMenusByStand(sellerStandId)
+        } else {
+            repository.getAllMenus()
+        }
+
+        menusResult.onSuccess { res ->
+            res.data?.takeIf { it.isNotEmpty() }?.let { apiMenus ->
+                menuList = apiMenus.map { menu ->
+                    SellerMenuItem(
+                        id = menu.id,
+                        name = menu.name,
+                        price = menu.price,
+                        stock = menu.stock,
+                        isAvailable = menu.isAvailable && menu.stock > 0,
+                        foodEmoji = when {
+                            menu.name.contains("Kebab", true) -> "🥙"
+                            menu.name.contains("Ayam", true) || menu.name.contains("Crispy", true) -> "🍗"
+                            menu.name.contains("Sosis", true) -> "🌭"
+                            menu.name.contains("Roti", true) || menu.name.contains("Maryam", true) -> "🫓"
+                            menu.name.contains("Kopi", true) || menu.name.contains("Teh", true) -> "🧋"
+                            else -> "🍱"
+                        }
+                    )
+                }
+            }
+        }
     }
 
     Scaffold(
@@ -505,7 +573,7 @@ fun SellerDashboardScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Rp ${String.format(Locale.GERMANY, "%,d", todayIncome)}",
+                            text = "Rp ${String.format(Locale.GERMANY, "%,d", currentTodayIncome)}",
                             fontSize = 28.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = TextPrimary
@@ -529,7 +597,7 @@ fun SellerDashboardScreen(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "$completedOrders pesanan selesai disajikan",
+                        text = "$currentCompletedOrders pesanan selesai disajikan",
                         fontSize = 12.sp,
                         color = TextSecondary
                     )
@@ -562,7 +630,7 @@ fun SellerDashboardScreen(
 
                         Spacer(modifier = Modifier.height(6.dp))
 
-                        Text(text = "$activeQueueCount Porsi", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+                        Text(text = "$currentActiveQueueCount Porsi", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
 
                         Spacer(modifier = Modifier.height(8.dp))
 
@@ -575,7 +643,7 @@ fun SellerDashboardScreen(
                                     .padding(vertical = 3.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(text = "$readyCount Siap Ambil", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
+                                Text(text = "$currentReadyCount Siap Ambil", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
                             }
 
                             Box(
@@ -586,7 +654,7 @@ fun SellerDashboardScreen(
                                     .padding(vertical = 3.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(text = "$cookingCount Dimasak", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFC2410C))
+                                Text(text = "$currentCookingCount Dimasak", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFC2410C))
                             }
                         }
                     }
@@ -792,6 +860,9 @@ fun SellerDashboardScreen(
                                         val updated = menuList.toMutableList()
                                         updated[index] = menu.copy(isAvailable = checked, stock = if (checked && menu.stock == 0) 5 else menu.stock)
                                         menuList = updated
+                                        coroutineScope.launch {
+                                            repository.updateMenu(menu.id, isAvailable = checked)
+                                        }
                                     },
                                     colors = SwitchDefaults.colors(
                                         checkedThumbColor = Color.White,
@@ -811,7 +882,15 @@ fun SellerDashboardScreen(
             // 7. Save Stock Changes Button
             Button(
                 onClick = {
-                    Toast.makeText(context, "Perubahan Stok Berhasil Disimpan ke Sistem Koperasi!", Toast.LENGTH_SHORT).show()
+                    coroutineScope.launch {
+                        var updateCount = 0
+                        menuList.forEach { item ->
+                            repository.updateMenuStock(item.id, item.stock).onSuccess {
+                                updateCount++
+                            }
+                        }
+                        Toast.makeText(context, "Perubahan Stok Berhasil Disimpan ($updateCount menu terverifikasi)!", Toast.LENGTH_SHORT).show()
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()

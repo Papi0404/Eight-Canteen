@@ -23,6 +23,7 @@ data class CartItem(
     val price: Double,
     val quantity: Int = 1,
     val standName: String = "Stand 04",
+    val standId: String? = null,
     val imageUrl: String = "",
     val imageType: FoodImageType = FoodImageType.GENERIC,
     val foodEmoji: String = "🍱"

@@ -51,6 +51,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -67,6 +68,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.januarzidanetinendeng.eightcanteen.data.local.SessionManager
+import com.januarzidanetinendeng.eightcanteen.data.repository.CanteenRepository
 import com.januarzidanetinendeng.eightcanteen.ui.checkout.CartItem
 import com.januarzidanetinendeng.eightcanteen.ui.checkout.CartViewModel
 import com.januarzidanetinendeng.eightcanteen.ui.checkout.FoodImageType
@@ -103,7 +106,8 @@ data class MenuItem(
     val prepareTime: String,
     val tag: String?,
     val tagColor: Color?,
-    val foodEmoji: String
+    val foodEmoji: String,
+    val standId: String? = null
 )
 
 @Composable
@@ -130,7 +134,11 @@ fun StudentDashboardScreen(
     val cartCount = cartUiState.totalMenuCount
     val cartTotal = cartUiState.subtotal
 
-    val stands = remember {
+    var currentStudentName by remember { mutableStateOf(studentName) }
+    var currentStudentClass by remember { mutableStateOf(studentClass) }
+    var currentLoyaltyPoints by remember { mutableIntStateOf(loyaltyPoints) }
+
+    val defaultStands = remember {
         listOf(
             StandItem("1", "Kebab Bang Ali", "4.9", "50m • Buka", false, "🥙"),
             StandItem("2", "Ketoprak Bu Joko", "4.8", "15 mnt", true, "🍲"),
@@ -139,14 +147,105 @@ fun StudentDashboardScreen(
         )
     }
 
-    val menuItems = remember {
+    val defaultMenuItems = remember {
         listOf(
-            MenuItem("m1", "Kebab Beef Jumbo", "Kebab Bang Ali", 15000, 4, "10 mnt", "Keju", Color(0xFFFEF3C7), "🥙"),
-            MenuItem("m2", "Ketoprak Telur Spesial", "Ketoprak Bu Joko", 14000, 2, "15 mnt", null, null, "🍲"),
-            MenuItem("m3", "Ayam Sambal Matah", "Ayam Geprek 8 • Termasuk Nasi", 16000, 8, "8 mnt", "Pedas", Color(0xFFFEE2E2), "🍗"),
-            MenuItem("m4", "Dimsum Ayam Mentai", "Stand Cemilan Gurih • 4pcs", 12000, 3, "5 mnt", null, null, "🥟"),
-            MenuItem("m5", "Es Kopi Susu Aren 8", "Kantin 8 Official Barista", 10000, 10, "Cepat", null, null, "🧋")
+            MenuItem("m1", "Kebab Beef Jumbo", "Kebab Bang Ali", 15000, 4, "10 mnt", "Keju", Color(0xFFFEF3C7), "🥙", "1"),
+            MenuItem("m2", "Ketoprak Telur Spesial", "Ketoprak Bu Joko", 14000, 2, "15 mnt", null, null, "🍲", "2"),
+            MenuItem("m3", "Ayam Sambal Matah", "Ayam Geprek 8 • Termasuk Nasi", 16000, 8, "8 mnt", "Pedas", Color(0xFFFEE2E2), "🍗", "3"),
+            MenuItem("m4", "Dimsum Ayam Mentai", "Stand Cemilan Gurih • 4pcs", 12000, 3, "5 mnt", null, null, "🥟", "4"),
+            MenuItem("m5", "Es Kopi Susu Aren 8", "Kantin 8 Official Barista", 10000, 10, "Cepat", null, null, "🧋", "4")
         )
+    }
+
+    var stands by remember { mutableStateOf(defaultStands) }
+    var menuItems by remember { mutableStateOf(defaultMenuItems) }
+    val repository = remember { CanteenRepository() }
+
+    LaunchedEffect(Unit) {
+        val session = SessionManager.getInstance(context)
+        if (session.getUserName().isNotBlank() && session.getUserName() != "Pengguna") {
+            currentStudentName = session.getUserName()
+        }
+        if (session.getPoints() > 0) {
+            currentLoyaltyPoints = session.getPoints()
+        }
+
+        // 1. Fetch User Profile
+        repository.getMyProfile().onSuccess { res ->
+            res.data?.let { profile ->
+                profile.fullName?.takeIf { it.isNotBlank() }?.let { currentStudentName = it }
+                    ?: profile.name?.takeIf { it.isNotBlank() }?.let { currentStudentName = it }
+                profile.studentClass?.takeIf { it.isNotBlank() }?.let { currentStudentClass = it }
+                profile.points?.let {
+                    currentLoyaltyPoints = it
+                    session.updatePoints(it)
+                }
+            }
+        }
+
+        // 2. Fetch Stands
+        repository.getStands().onSuccess { res ->
+            res.data?.takeIf { it.isNotEmpty() }?.let { apiStands ->
+                stands = apiStands.map { stand ->
+                    StandItem(
+                        id = stand.id,
+                        name = stand.name,
+                        rating = String.format(Locale.US, "%.1f", stand.rating ?: 4.8),
+                        distanceOrTime = if (stand.isOpen == true) "Buka" else "Tutup",
+                        isBusy = false,
+                        foodEmoji = when {
+                            stand.name.contains("Kebab", true) -> "🥙"
+                            stand.name.contains("Ketoprak", true) -> "🍲"
+                            stand.name.contains("Ayam", true) -> "🍗"
+                            stand.name.contains("Kopi", true) || stand.name.contains("Barista", true) -> "🧋"
+                            else -> "🍱"
+                        }
+                    )
+                }
+            }
+        }
+
+        // 3. Fetch Menus
+        repository.getAllMenus().onSuccess { res ->
+            res.data?.takeIf { it.isNotEmpty() }?.let { apiMenus ->
+                menuItems = apiMenus.map { menu ->
+                    MenuItem(
+                        id = menu.id,
+                        name = menu.name,
+                        standName = menu.stands?.name ?: "Stand Kantin",
+                        price = menu.price,
+                        stock = menu.stock,
+                        prepareTime = menu.prepareTime ?: "10 mnt",
+                        tag = if (menu.stock in 1..4) "Tersisa ${menu.stock}" else null,
+                        tagColor = if (menu.stock in 1..4) Color(0xFFFEE2E2) else null,
+                        foodEmoji = when {
+                            menu.name.contains("Kebab", true) -> "🥙"
+                            menu.name.contains("Ketoprak", true) -> "🍲"
+                            menu.name.contains("Ayam", true) || menu.name.contains("Geprek", true) -> "🍗"
+                            menu.name.contains("Dimsum", true) -> "🥟"
+                            menu.name.contains("Kopi", true) || menu.name.contains("Teh", true) || menu.name.contains("Es", true) -> "🧋"
+                            else -> "🍛"
+                        },
+                        standId = menu.standId
+                    )
+                }
+            }
+        }
+    }
+
+    val displayedMenus = remember(searchQuery, selectedFilter, menuItems) {
+        menuItems.filter { item ->
+            val matchesQuery = searchQuery.isBlank() ||
+                item.name.contains(searchQuery, ignoreCase = true) ||
+                item.standName.contains(searchQuery, ignoreCase = true)
+            val matchesFilter = when (selectedFilter) {
+                "Halal" -> true
+                "Favorit" -> item.tag != null || item.stock > 5
+                "Di Bawah 15rb" -> item.price <= 15000
+                else -> true
+            }
+            matchesQuery && matchesFilter
+        }
     }
 
     Scaffold(
@@ -287,7 +386,7 @@ fun StudentDashboardScreen(
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = "Halo, $studentName",
+                                    text = "Halo, $currentStudentName",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = TextPrimary
@@ -296,7 +395,7 @@ fun StudentDashboardScreen(
                                 Text(text = "👋", fontSize = 14.sp)
                             }
                             Text(
-                                text = studentClass,
+                                text = currentStudentClass,
                                 fontSize = 11.sp,
                                 color = TextSecondary
                             )
@@ -317,7 +416,7 @@ fun StudentDashboardScreen(
                             Spacer(modifier = Modifier.width(4.dp))
                             Column {
                                 Text(text = "LOYALTY", fontSize = 8.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFFB45309))
-                                Text(text = "$loyaltyPoints Poin", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
+                                Text(text = "$currentLoyaltyPoints Poin", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
                             }
                         }
                     }
@@ -345,7 +444,7 @@ fun StudentDashboardScreen(
                                 Text(text = "🍱", fontSize = 14.sp)
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "$loyaltyPoints/50 Poin",
+                                    text = "$currentLoyaltyPoints/50 Poin",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = TextPrimary
@@ -359,7 +458,7 @@ fun StudentDashboardScreen(
                             }
 
                             Text(
-                                text = "50%",
+                                text = "${(currentLoyaltyPoints * 2).coerceAtMost(100)}%",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = BluePrimary
@@ -370,7 +469,7 @@ fun StudentDashboardScreen(
 
                         // Progress Bar
                         LinearProgressIndicator(
-                            progress = { 0.5f },
+                            progress = { (currentLoyaltyPoints / 50f).coerceIn(0f, 1f) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(8.dp)
@@ -570,7 +669,7 @@ fun StudentDashboardScreen(
 
                 // Vertical Menu List
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    menuItems.forEach { menu ->
+                    displayedMenus.forEach { menu ->
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
@@ -664,6 +763,7 @@ fun StudentDashboardScreen(
                                                         price = menu.price.toDouble(),
                                                         quantity = 1,
                                                         standName = menu.standName,
+                                                        standId = menu.standId,
                                                         imageType = foodType,
                                                         foodEmoji = menu.foodEmoji
                                                     )

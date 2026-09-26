@@ -933,11 +933,23 @@ fun AdminAddStandScreen(
 
                     isLoading = true
                     coroutineScope.launch {
-                        // Simulate POST /admin/stands API payload execution
-                        delay(1200)
+                        val repository = com.januarzidanetinendeng.eightcanteen.data.repository.CanteenRepository()
+                        val result = repository.adminCreateStand(
+                            ownerName = ownerName,
+                            standName = standName,
+                            phoneNumber = sellerPhoneNumber.replace("-", "").trim(),
+                            counterSlot = counterPosition,
+                            category = selectedCategory
+                        )
                         isLoading = false
-                        Toast.makeText(context, "Stand $standName Berhasil Didaftarkan! Akses WA +62 $sellerPhoneNumber Aktif!", Toast.LENGTH_LONG).show()
-                        onAddStandSuccess(standName, ownerName)
+                        result.onSuccess { response ->
+                            val msg = response.message ?: "Stand $standName Berhasil Didaftarkan! Akses WA +62 $sellerPhoneNumber Aktif!"
+                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            onAddStandSuccess(standName, ownerName)
+                        }.onFailure { e ->
+                            Toast.makeText(context, "Respon Server: ${e.message}", Toast.LENGTH_SHORT).show()
+                            onAddStandSuccess(standName, ownerName)
+                        }
                     }
                 },
                 modifier = Modifier

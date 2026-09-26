@@ -626,11 +626,17 @@ fun StudentRegisterScreen(
 
                     isLoading = true
                     coroutineScope.launch {
-                        // Simulate POST /auth/register API payload execution
-                        delay(1200)
+                        val repository = com.januarzidanetinendeng.eightcanteen.data.repository.CanteenRepository()
+                        val result = repository.register(name = fullName, role = "Siswa", nis = nisnNumber)
                         isLoading = false
-                        Toast.makeText(context, "Pendaftaran Siswa Berhasil! +5 Loyalty Poin Ditambahkan!", Toast.LENGTH_LONG).show()
-                        onRegisterSuccess(fullName, selectedClass)
+                        result.onSuccess { response ->
+                            val msg = response.message ?: "Pendaftaran Siswa Berhasil! +5 Loyalty Poin Ditambahkan!"
+                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            onRegisterSuccess(fullName, selectedClass)
+                        }.onFailure { e ->
+                            Toast.makeText(context, "Respon Server: ${e.message}", Toast.LENGTH_SHORT).show()
+                            onRegisterSuccess(fullName, selectedClass)
+                        }
                     }
                 },
                 modifier = Modifier

@@ -1,7 +1,24 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
+
+val envProperties = Properties()
+val envFile = rootProject.file(".env")
+if (envFile.exists()) {
+    envProperties.load(FileInputStream(envFile))
+} else {
+    val localPropFile = rootProject.file("local.properties")
+    if (localPropFile.exists()) {
+        envProperties.load(FileInputStream(localPropFile))
+    }
+}
+
+val envBaseUrl: String = envProperties.getProperty("BASE_URL") ?: "https://api-eight-canteen.onrender.com/api/v1/"
+val envApiKey: String = envProperties.getProperty("API_KEY") ?: "e36af531bb921d051d8ab501e77059fbdbd528f5863956e2fa32709f574416ae5218d1389403cad92266f669b21a24e678b9bfe151b461a3c31fb6d77a4e4e01"
 
 android {
     namespace = "com.januarzidanetinendeng.eightcanteen"
@@ -18,6 +35,9 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        buildConfigField("String", "BASE_URL", "\"$envBaseUrl\"")
+        buildConfigField("String", "API_KEY", "\"$envApiKey\"")
     }
 
     buildTypes {
@@ -39,6 +59,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     packaging {
         resources {

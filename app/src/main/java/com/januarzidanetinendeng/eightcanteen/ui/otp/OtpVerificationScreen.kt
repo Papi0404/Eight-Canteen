@@ -1,6 +1,10 @@
 package com.januarzidanetinendeng.eightcanteen.ui.otp
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,6 +34,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.SupportAgent
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -59,6 +64,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.januarzidanetinendeng.eightcanteen.data.local.SessionManager
+import com.januarzidanetinendeng.eightcanteen.data.remote.ApiConfig
+import com.januarzidanetinendeng.eightcanteen.data.repository.CanteenRepository
 import com.januarzidanetinendeng.eightcanteen.ui.components.EKantinLogoIcon
 import com.januarzidanetinendeng.eightcanteen.ui.components.ShieldCheckIcon
 import com.januarzidanetinendeng.eightcanteen.ui.theme.BlueChipBg
@@ -86,8 +94,14 @@ fun OtpVerificationScreen(
     val scrollState = rememberScrollState()
 
     var otpCode by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var timerSeconds by remember { mutableIntStateOf(58) }
+
+    // Intercept system back button/gesture to return to previous screen
+    BackHandler {
+        onBackClick()
+    }
 
     // Countdown timer for resend OTP
     LaunchedEffect(timerSeconds) {
@@ -252,9 +266,43 @@ fun OtpVerificationScreen(
             Spacer(modifier = Modifier.height(22.dp))
 
             // 4. 4-Digit OTP Boxes
-            OtpDigitRow(otpCode = otpCode)
+            OtpDigitRow(otpCode = otpCode, isError = errorMessage != null)
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Error Warning Banner
+            AnimatedVisibility(
+                visible = errorMessage != null,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color(0xFFFEF2F2))
+                        .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(14.dp))
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "Error",
+                            tint = Color(0xFFDC2626),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = errorMessage ?: "Kode OTP salah",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFB91C1C)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             // 5. Official Koperasi Notice Chip
             Box(
@@ -282,16 +330,43 @@ fun OtpVerificationScreen(
             Button(
                 onClick = {
                     if (otpCode.length < 4) {
+                        errorMessage = "Masukkan 4 digit OTP terlebih dahulu"
                         Toast.makeText(context, "Masukkan 4 digit OTP terlebih dahulu", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
                     isLoading = true
+                    errorMessage = null
                     coroutineScope.launch {
-                        // Simulate POST /auth/verify-otp API payload execution
-                        delay(1000)
+                        val repository = CanteenRepository()
+                        val cleanPhone = phoneNumber.replace("-", "").trim()
+                        val result = repository.verifyOtp(cleanPhone, otpCode)
                         isLoading = false
-                        Toast.makeText(context, "Verifikasi Berhasil!", Toast.LENGTH_SHORT).show()
-                        onVerificationSuccess(otpCode)
+                        result.onSuccess { response ->
+                            val loginData = response.data
+                            if (loginData != null) {
+                                // Simpan JWT token ke SessionManager & ApiConfig
+                                val session = SessionManager.getInstance(context)
+                                session.saveAuthToken(loginData.token)
+                                session.saveUser(
+                                    id = loginData.user.id,
+                                    name = loginData.user.fullName ?: loginData.user.name ?: "User",
+                                    role = loginData.user.role ?: "Siswa",
+                                    phone = cleanPhone,
+                                    standId = loginData.user.stand?.id,
+                                    points = loginData.user.points ?: 0
+                                )
+                                ApiConfig.setAuthToken(loginData.token)
+                            }
+                            errorMessage = null
+                            Toast.makeText(context, response.message ?: "Verifikasi Berhasil!", Toast.LENGTH_SHORT).show()
+                            onVerificationSuccess(otpCode)
+                        }.onFailure { e ->
+                            val errorMsg = e.message ?: "Kode OTP salah atau telah kadaluarsa"
+                            errorMessage = errorMsg
+                            otpCode = "" // Reset kode agar user bisa mengetik ulang dengan mudah
+                            Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+                            // PENTING: JANGAN panggil onVerificationSuccess jika OTP gagal!
+                        }
                     }
                 },
                 modifier = Modifier
@@ -433,11 +508,13 @@ fun OtpVerificationScreen(
                 onNumberClick = { num ->
                     if (otpCode.length < 4) {
                         otpCode += num
+                        errorMessage = null
                     }
                 },
                 onBackspaceClick = {
                     if (otpCode.isNotEmpty()) {
                         otpCode = otpCode.dropLast(1)
+                        errorMessage = null
                     }
                 },
                 onBiometricClick = {
@@ -515,7 +592,7 @@ fun OtpIllustrationHeader() {
 }
 
 @Composable
-fun OtpDigitRow(otpCode: String) {
+fun OtpDigitRow(otpCode: String, isError: Boolean = false) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -526,12 +603,14 @@ fun OtpDigitRow(otpCode: String) {
             val char = if (isFilled) otpCode[i].toString() else ""
 
             val bgColor = when {
+                isError -> Color(0xFFFEF2F2)
                 isCurrentFocused -> BlueLightBg
                 isFilled -> Color.White
                 else -> Color.White
             }
 
             val borderColor = when {
+                isError -> Color(0xFFDC2626)
                 isCurrentFocused -> BluePrimary
                 isFilled -> Color(0xFFCBD5E1)
                 else -> BorderColor
@@ -540,11 +619,11 @@ fun OtpDigitRow(otpCode: String) {
             Box(
                 modifier = Modifier
                     .size(width = 62.dp, height = 64.dp)
-                    .shadow(elevation = if (isFilled || isCurrentFocused) 4.dp else 1.dp, shape = RoundedCornerShape(16.dp), ambientColor = Color(0x152563EB))
+                    .shadow(elevation = if (isFilled || isCurrentFocused) 4.dp else 1.dp, shape = RoundedCornerShape(16.dp), ambientColor = if (isError) Color(0x33DC2626) else Color(0x152563EB))
                     .clip(RoundedCornerShape(16.dp))
                     .background(bgColor)
                     .border(
-                        width = if (isCurrentFocused) 2.dp else 1.dp,
+                        width = if (isError || isCurrentFocused) 2.dp else 1.dp,
                         color = borderColor,
                         shape = RoundedCornerShape(16.dp)
                     ),
@@ -555,7 +634,7 @@ fun OtpDigitRow(otpCode: String) {
                         text = char,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
-                        color = BluePrimary
+                        color = if (isError) Color(0xFFDC2626) else BluePrimary
                     )
                 } else if (isCurrentFocused) {
                     // Vertical Cursor Line |
@@ -563,7 +642,7 @@ fun OtpDigitRow(otpCode: String) {
                         modifier = Modifier
                             .width(2.dp)
                             .height(24.dp)
-                            .background(BluePrimary)
+                            .background(if (isError) Color(0xFFDC2626) else BluePrimary)
                     )
                 } else {
                     // Empty dash -
@@ -571,7 +650,7 @@ fun OtpDigitRow(otpCode: String) {
                         text = "-",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextMuted
+                        color = if (isError) Color(0xFFFCA5A5) else TextMuted
                     )
                 }
             }

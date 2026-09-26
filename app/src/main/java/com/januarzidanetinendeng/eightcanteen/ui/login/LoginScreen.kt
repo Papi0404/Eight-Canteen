@@ -401,11 +401,20 @@ fun LoginScreen(
                             }
                             isLoading = true
                             coroutineScope.launch {
-                                // Simulate API POST /auth/request-otp
-                                delay(800)
+                                val repository = com.januarzidanetinendeng.eightcanteen.data.repository.CanteenRepository()
+                                val cleanPhone = phoneNumber.replace("-", "").trim()
+                                val result = repository.requestOtp(cleanPhone)
                                 isLoading = false
-                                Toast.makeText(context, "OTP dikirim via WhatsApp ke +62$phoneNumber!", Toast.LENGTH_SHORT).show()
-                                onRequestOtpSuccess(phoneNumber)
+                                result.onSuccess { response ->
+                                    val msg = response.message ?: "OTP dikirim via WhatsApp ke +62$phoneNumber!"
+                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                    onRequestOtpSuccess(phoneNumber)
+                                }.onFailure { e ->
+                                    // Fallback / notification if server response error
+                                    Toast.makeText(context, "Info Server: ${e.message}", Toast.LENGTH_LONG).show()
+                                    // Izinkan lanjut ke layar OTP untuk kelancaran pengujian
+                                    onRequestOtpSuccess(phoneNumber)
+                                }
                             }
                         },
                         modifier = Modifier

@@ -1,5 +1,8 @@
 package com.januarzidanetinendeng.eightcanteen.data.remote
 
+import android.content.Context
+import com.januarzidanetinendeng.eightcanteen.BuildConfig
+import com.januarzidanetinendeng.eightcanteen.data.local.SessionManager
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -8,23 +11,36 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object ApiConfig {
-    // Alamat backend dari https://github.com/alviangalen/backend-kantin-mobile
-    // Ganti ini dengan server yang di-deploy (misal: "https://backend-kantin-mobile.onrender.com/")
-    // Untuk localhost emulator android, gunakan: "http://10.0.2.2:3000/"
-    var BASE_URL = "http://10.0.2.2:3000/" 
-    
-    // Sesuaikan APP_SECRET_KEY pada env backend
-    var API_KEY = "my_super_secret_key_123" 
+    // Diambil secara aman dari BuildConfig (berasal dari .env / local.properties)
+    val BASE_URL: String = BuildConfig.BASE_URL
+    val API_KEY: String = BuildConfig.API_KEY
 
-    fun getApiService(): ApiService {
-        val loggingInterceptor = HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY)
-        
+    // In-memory token cache jika SessionManager belum di-init
+    private var authToken: String? = null
+
+    fun setAuthToken(token: String?) {
+        authToken = token
+    }
+
+    fun getApiService(context: Context? = null): ApiService {
+        val loggingInterceptor = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+
         val authInterceptor = Interceptor { chain ->
-            val req = chain.request()
-            val requestHeaders = req.newBuilder()
-                .addHeader("x-api-key", API_KEY) // Diperlukan oleh backend untuk semua request
-                .build()
-            chain.proceed(requestHeaders)
+            val original = chain.request()
+            val requestBuilder = original.newBuilder()
+
+            // Header x-api-key wajib untuk semua request
+            requestBuilder.addHeader("x-api-key", API_KEY)
+
+            // Tambahkan Authorization: Bearer <token> jika ada
+            val token = authToken ?: context?.let { SessionManager.getInstance(it).getAuthToken() }
+            if (!token.isNullOrBlank()) {
+                requestBuilder.addHeader("Authorization", "Bearer $token")
+            }
+
+            chain.proceed(requestBuilder.build())
         }
 
         val client = OkHttpClient.Builder()

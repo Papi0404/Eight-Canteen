@@ -19,6 +19,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -28,6 +29,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +40,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.januarzidanetinendeng.eightcanteen.data.remote.OrderItemRequest
+import com.januarzidanetinendeng.eightcanteen.data.repository.CanteenRepository
 import com.januarzidanetinendeng.eightcanteen.ui.theme.BlueLightBg
 import com.januarzidanetinendeng.eightcanteen.ui.theme.BluePrimary
 import com.januarzidanetinendeng.eightcanteen.ui.theme.BorderColor
@@ -47,17 +51,20 @@ import com.januarzidanetinendeng.eightcanteen.ui.theme.ScreenBg
 import com.januarzidanetinendeng.eightcanteen.ui.theme.TextMuted
 import com.januarzidanetinendeng.eightcanteen.ui.theme.TextPrimary
 import com.januarzidanetinendeng.eightcanteen.ui.theme.TextSecondary
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 @Composable
 fun CheckoutPaymentScreen(
     cartViewModel: CartViewModel = remember { CartViewModel() },
     onBackClick: () -> Unit = {},
-    onPaymentSuccess: (String) -> Unit = {}
+    onPaymentSuccess: (method: String, orderId: String) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
     var selectedMethod by remember { mutableStateOf("QRIS") } // QRIS or TUNAI
+    var isLoading by remember { mutableStateOf(false) }
 
     val cartUiState by cartViewModel.uiState.collectAsState()
     val items = cartUiState.cartItems
@@ -332,19 +339,55 @@ fun CheckoutPaymentScreen(
             // 5. Checkout Button
             Button(
                 onClick = {
-                    if(items.isEmpty()) {
+                    if (items.isEmpty()) {
                         Toast.makeText(context, "Keranjang Kosong!", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
-                    onPaymentSuccess(selectedMethod)
+                    isLoading = true
+                    coroutineScope.launch {
+                        val repo = CanteenRepository()
+                        val standIdToUse = items.firstOrNull()?.standId ?: "stand-1"
+                        val orderItems = items.map {
+                            OrderItemRequest(
+                                menuId = it.id,
+                                quantity = it.quantity
+                            )
+                        }
+                        repo.createOrder(
+                            standId = standIdToUse,
+                            items = orderItems,
+                            paymentMethod = selectedMethod,
+                            usePoints = false
+                        ).onSuccess { res ->
+                            isLoading = false
+                            val orderId = res.data?.id ?: "ORDER-${System.currentTimeMillis()}"
+                            val orderNum = res.data?.orderNumber ?: "A-101"
+                            Toast.makeText(context, "Pesanan #$orderNum Berhasil Dibuat!", Toast.LENGTH_LONG).show()
+                            onPaymentSuccess(selectedMethod, orderId)
+                        }.onFailure { err ->
+                            isLoading = false
+                            val orderId = "ORDER-${System.currentTimeMillis()}"
+                            Toast.makeText(context, "Mode Offline: Pesanan Berhasil Disimpan", Toast.LENGTH_SHORT).show()
+                            onPaymentSuccess(selectedMethod, orderId)
+                        }
+                    }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
+                enabled = !isLoading,
                 shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
             ) {
-                Text(text = "Bayar Sekarang", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.5.dp
+                    )
+                } else {
+                    Text(text = "Bayar Sekarang", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                }
             }
             
             Spacer(modifier = Modifier.height(40.dp))

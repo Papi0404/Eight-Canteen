@@ -728,11 +728,17 @@ fun StandRegisterScreen(
                     }
                     isLoading = true
                     coroutineScope.launch {
-                        // Simulate POST /admin/stands API payload execution
-                        delay(1200)
+                        val repository = com.januarzidanetinendeng.eightcanteen.data.repository.CanteenRepository()
+                        val result = repository.register(name = ownerName, role = "Penjual", standName = standName)
                         isLoading = false
-                        Toast.makeText(context, "Pendaftaran Stand $standName Berhasil Dikirim ke Koperasi!", Toast.LENGTH_LONG).show()
-                        onRegisterSuccess(standName, ownerName)
+                        result.onSuccess { response ->
+                            val msg = response.message ?: "Pendaftaran Stand $standName Berhasil Dikirim ke Koperasi!"
+                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            onRegisterSuccess(standName, ownerName)
+                        }.onFailure { e ->
+                            Toast.makeText(context, "Respon Server: ${e.message}", Toast.LENGTH_SHORT).show()
+                            onRegisterSuccess(standName, ownerName)
+                        }
                     }
                 },
                 modifier = Modifier

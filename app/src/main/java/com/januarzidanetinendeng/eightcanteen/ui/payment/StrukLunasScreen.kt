@@ -39,9 +39,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,6 +63,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.januarzidanetinendeng.eightcanteen.data.remote.OrderResponse
+import com.januarzidanetinendeng.eightcanteen.data.repository.CanteenRepository
 import com.januarzidanetinendeng.eightcanteen.ui.checkout.CartViewModel
 import com.januarzidanetinendeng.eightcanteen.ui.checkout.formatRupiah
 import com.januarzidanetinendeng.eightcanteen.ui.components.EKantinLogoIcon
@@ -70,19 +75,30 @@ import java.util.Locale
 
 @Composable
 fun StrukLunasScreen(
+    orderId: String? = null,
     viewModel: CartViewModel = remember { CartViewModel() },
     onBackClick: () -> Unit = {},
     onBackToHome: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    var orderDetail by remember { mutableStateOf<OrderResponse?>(null) }
+
+    LaunchedEffect(orderId) {
+        if (!orderId.isNullOrBlank()) {
+            val repo = CanteenRepository()
+            repo.getOrderDetail(orderId).onSuccess { res ->
+                res.data?.let { orderDetail = it }
+            }
+        }
+    }
 
     val currentDateStr = remember {
         val sdf = SimpleDateFormat("dd MMM yyyy, HH:mm 'WIB'", Locale("id", "ID"))
         sdf.format(Date())
     }
 
-    val standNameDisplay = state.cartItems.firstOrNull()?.standName ?: state.standInfo
+    val standNameDisplay = orderDetail?.standName ?: state.cartItems.firstOrNull()?.standName ?: state.standInfo
 
     Scaffold(
         topBar = {
@@ -222,7 +238,7 @@ fun StrukLunasScreen(
                             color = Color(0xFF64748B)
                         )
                         Text(
-                            text = "#A-142",
+                            text = orderDetail?.orderNumber?.let { "#$it" } ?: (orderId?.takeLast(5)?.let { "#A-$it" } ?: "#A-142"),
                             fontSize = 36.sp,
                             fontWeight = FontWeight.Black,
                             color = Color(0xFF0052CC),
@@ -237,7 +253,7 @@ fun StrukLunasScreen(
                                 .padding(horizontal = 12.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "● SIAP DIAMBIL (LUNAS)",
+                                text = "● ${orderDetail?.status ?: "SIAP DIAMBIL (LUNAS)"}",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Color(0xFF1E40AF)

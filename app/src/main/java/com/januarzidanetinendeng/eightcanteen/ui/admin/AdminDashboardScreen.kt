@@ -55,6 +55,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -158,6 +159,31 @@ fun AdminDashboardScreen(
                 ViolationCase("v2", "Rangga Aditya", "Kelas X DKV 3", "Stand B", 14000, "Tidak hadir di antrean kantin")
             )
         )
+    }
+
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+    val repository = remember { com.januarzidanetinendeng.eightcanteen.data.repository.CanteenRepository() }
+
+    androidx.compose.runtime.LaunchedEffect(selectedPeriod) {
+        repository.getAdminRevenue().onSuccess { res ->
+            // Update revenue if available from API
+        }
+        repository.getAdminViolations().onSuccess { res ->
+            res.data?.let { list ->
+                if (list.isNotEmpty()) {
+                    violationList = list.map { v ->
+                        ViolationCase(
+                            id = v.id,
+                            studentName = v.studentName ?: "Siswa",
+                            studentClass = v.studentClass ?: "Kelas Siswa",
+                            standName = v.standName ?: "Stand",
+                            amount = v.amount ?: 15000,
+                            note = v.note ?: "Belum diambil saat istirahat"
+                        )
+                    }
+                }
+            }
+        }
     }
 
     Scaffold(
@@ -665,6 +691,9 @@ fun AdminDashboardScreen(
                                         val updated = payoutList.toMutableList()
                                         updated[index] = payout.copy(isDisbursed = true)
                                         payoutList = updated
+                                        coroutineScope.launch {
+                                            repository.getAdminStandRevenue(payout.code)
+                                        }
                                         Toast.makeText(context, "Pencairan Net Rp ${payout.netAmount} ke ${payout.standName} Berhasil!", Toast.LENGTH_SHORT).show()
                                     },
                                     enabled = !payout.isDisbursed,
@@ -784,6 +813,9 @@ fun AdminDashboardScreen(
                                             val updated = violationList.toMutableList()
                                             updated[index] = v.copy(isWarned = true)
                                             violationList = updated
+                                            coroutineScope.launch {
+                                                repository.addViolation(userId = v.id, points = 5, note = v.note)
+                                            }
                                             Toast.makeText(context, "Teguran & Poin Pelanggaran Dikirim ke ${v.studentName}!", Toast.LENGTH_SHORT).show()
                                         },
                                         enabled = !v.isWarned,
