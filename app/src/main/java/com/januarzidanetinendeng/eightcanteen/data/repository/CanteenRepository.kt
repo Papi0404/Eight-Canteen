@@ -25,8 +25,9 @@ class CanteenRepository(
             } catch (_: Exception) {}
 
             val fallbackMsg = when (e.code()) {
-                400 -> "Kode OTP salah atau format permintaan tidak valid"
-                401 -> "Kode OTP telah kadaluarsa atau tidak cocok"
+                400 -> "Permintaan tidak valid atau data salah"
+                401 -> "Sesi login telah berakhir atau token tidak valid"
+                403 -> "Akses ditolak"
                 404 -> "Data tidak ditemukan"
                 else -> "Gagal memproses permintaan (HTTP ${e.code()})"
             }

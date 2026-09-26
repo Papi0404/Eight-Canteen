@@ -353,7 +353,11 @@ fun OtpVerificationScreen(
                                     role = loginData.user.role ?: "Siswa",
                                     phone = cleanPhone,
                                     standId = loginData.user.stand?.id,
-                                    points = loginData.user.points ?: 0
+                                    points = loginData.user.points ?: 0,
+                                    studentClass = loginData.user.studentClass,
+                                    nis = loginData.user.nis,
+                                    standName = loginData.user.stand?.name,
+                                    counterSlot = loginData.user.stand?.counterSlot
                                 )
                                 ApiConfig.setAuthToken(loginData.token)
                             }

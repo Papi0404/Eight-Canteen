@@ -17,9 +17,22 @@ object ApiConfig {
 
     // In-memory token cache jika SessionManager belum di-init
     private var authToken: String? = null
+    private var applicationContext: Context? = null
+
+    fun init(context: Context) {
+        applicationContext = context.applicationContext
+        val savedToken = SessionManager.getInstance(context).getAuthToken()
+        if (!savedToken.isNullOrBlank()) {
+            authToken = savedToken
+        }
+    }
 
     fun setAuthToken(token: String?) {
         authToken = token
+    }
+
+    fun getAuthToken(): String? {
+        return authToken ?: applicationContext?.let { SessionManager.getInstance(it).getAuthToken() }
     }
 
     fun getApiService(context: Context? = null): ApiService {
@@ -35,7 +48,10 @@ object ApiConfig {
             requestBuilder.addHeader("x-api-key", API_KEY)
 
             // Tambahkan Authorization: Bearer <token> jika ada
-            val token = authToken ?: context?.let { SessionManager.getInstance(it).getAuthToken() }
+            val token = authToken
+                ?: context?.let { SessionManager.getInstance(it).getAuthToken() }
+                ?: applicationContext?.let { SessionManager.getInstance(it).getAuthToken() }
+
             if (!token.isNullOrBlank()) {
                 requestBuilder.addHeader("Authorization", "Bearer $token")
             }

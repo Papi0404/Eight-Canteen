@@ -72,7 +72,11 @@ class AuthViewModel(
                             role = data.user.role ?: "Siswa",
                             phone = cleanPhone,
                             standId = data.user.stand?.id,
-                            points = data.user.points ?: 0
+                            points = data.user.points ?: 0,
+                            studentClass = data.user.studentClass,
+                            nis = data.user.nis,
+                            standName = data.user.stand?.name,
+                            counterSlot = data.user.stand?.counterSlot
                         )
                     }
                     ApiConfig.setAuthToken(data.token)
