@@ -116,9 +116,11 @@ fun StudentDashboardScreen(
     studentName: String = "Dimas Pratama",
     studentClass: String = "XII RPL 2 • SMKN 8",
     loyaltyPoints: Int = 25,
+    initialNavTab: Int = 0,
     onPointsClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
     onCheckoutClick: () -> Unit = {},
+    onOrderClick: (orderId: String) -> Unit = {},
     onNavigateToNotifications: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -128,7 +130,11 @@ fun StudentDashboardScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf("Semua") }
-    var selectedNavTab by remember { mutableIntStateOf(0) }
+    var selectedNavTab by remember { mutableIntStateOf(initialNavTab) }
+
+    LaunchedEffect(initialNavTab) {
+        selectedNavTab = initialNavTab
+    }
 
     val cartUiState by cartViewModel.uiState.collectAsState()
     val cartCount = cartUiState.totalMenuCount
@@ -140,20 +146,19 @@ fun StudentDashboardScreen(
 
     val defaultStands = remember {
         listOf(
-            StandItem("1", "Kebab Bang Ali", "4.9", "50m • Buka", false, "🥙"),
-            StandItem("2", "Ketoprak Bu Joko", "4.8", "15 mnt", true, "🍲"),
-            StandItem("3", "Ayam Geprek 8", "4.7", "8 mnt", false, "🍗"),
-            StandItem("4", "Official Barista 8", "4.9", "Cepat", false, "🧋")
+            StandItem("bf7b8db5-ce1c-4692-9dd9-e2e05d4a64dc", "Kebab Bang Jago", "4.8", "Stand 01 • Buka", false, "🥙"),
+            StandItem("4376f549-c300-46fa-a6bc-00bf9c011709", "Jus Buah Bang Ijul", "4.8", "Stand 02 • Buka", false, "🍹"),
+            StandItem("5c4c639b-10b1-4af4-a55d-2e6bfc4913ac", "Kantin SMKN 8", "4.9", "Stand 03 • Buka", false, "🍲")
         )
     }
 
     val defaultMenuItems = remember {
         listOf(
-            MenuItem("m1", "Kebab Beef Jumbo", "Kebab Bang Ali", 15000, 4, "10 mnt", "Keju", Color(0xFFFEF3C7), "🥙", "1"),
-            MenuItem("m2", "Ketoprak Telur Spesial", "Ketoprak Bu Joko", 14000, 2, "15 mnt", null, null, "🍲", "2"),
-            MenuItem("m3", "Ayam Sambal Matah", "Ayam Geprek 8 • Termasuk Nasi", 16000, 8, "8 mnt", "Pedas", Color(0xFFFEE2E2), "🍗", "3"),
-            MenuItem("m4", "Dimsum Ayam Mentai", "Stand Cemilan Gurih • 4pcs", 12000, 3, "5 mnt", null, null, "🥟", "4"),
-            MenuItem("m5", "Es Kopi Susu Aren 8", "Kantin 8 Official Barista", 10000, 10, "Cepat", null, null, "🧋", "4")
+            MenuItem("8541903e-5518-4b3c-85e5-721513ae1c49", "Kebab Daging Spesial", "Kebab Bang Jago", 15000, 14, "10 mnt", "Favorit", Color(0xFFFEF3C7), "🥙", "bf7b8db5-ce1c-4692-9dd9-e2e05d4a64dc"),
+            MenuItem("5a1e4ab5-da9d-405a-9a4f-345a659c50e3", "Ketoprak Telur", "Kebab Bang Jago", 12000, 15, "15 mnt", null, null, "🍲", "bf7b8db5-ce1c-4692-9dd9-e2e05d4a64dc"),
+            MenuItem("6b05c4ca-d73b-48c1-913b-d7658b45feb5", "Es Teh Segar", "Kebab Bang Jago", 5000, 49, "Cepat", null, null, "🧋", "bf7b8db5-ce1c-4692-9dd9-e2e05d4a64dc"),
+            MenuItem("41bd2026-8588-4272-8427-bdf37fbed5cf", "Jus Jeruk", "Jus Buah Bang Ijul", 5000, 50, "5 mnt", null, null, "🍹", "4376f549-c300-46fa-a6bc-00bf9c011709"),
+            MenuItem("be92805b-bb6f-465f-a81f-32efcfa45229", "Jus Mangga", "Jus Buah Bang Ijul", 12000, 15, "8 mnt", null, null, "🥭", "4376f549-c300-46fa-a6bc-00bf9c011709")
         )
     }
 
@@ -191,12 +196,13 @@ fun StudentDashboardScreen(
                         id = stand.id,
                         name = stand.name,
                         rating = String.format(Locale.US, "%.1f", stand.rating ?: 4.8),
-                        distanceOrTime = if (stand.isOpen == true) "Buka" else "Tutup",
+                        distanceOrTime = "${stand.counterSlot ?: "Stand"} • ${if (stand.isOpen) "Buka" else "Tutup"}",
                         isBusy = false,
                         foodEmoji = when {
                             stand.name.contains("Kebab", true) -> "🥙"
                             stand.name.contains("Ketoprak", true) -> "🍲"
                             stand.name.contains("Ayam", true) -> "🍗"
+                            stand.name.contains("Jus", true) || stand.name.contains("Buah", true) -> "🍹"
                             stand.name.contains("Kopi", true) || stand.name.contains("Barista", true) -> "🧋"
                             else -> "🍱"
                         }
@@ -216,17 +222,19 @@ fun StudentDashboardScreen(
                         price = menu.price,
                         stock = menu.stock,
                         prepareTime = menu.prepareTime ?: "10 mnt",
-                        tag = if (menu.stock in 1..4) "Tersisa ${menu.stock}" else null,
-                        tagColor = if (menu.stock in 1..4) Color(0xFFFEE2E2) else null,
+                        tag = if (menu.stock in 1..4) "Tersisa ${menu.stock}" else if (menu.stock > 10) "Tersedia" else null,
+                        tagColor = if (menu.stock in 1..4) Color(0xFFFEE2E2) else Color(0xFFDCFCE7),
                         foodEmoji = when {
                             menu.name.contains("Kebab", true) -> "🥙"
                             menu.name.contains("Ketoprak", true) -> "🍲"
                             menu.name.contains("Ayam", true) || menu.name.contains("Geprek", true) -> "🍗"
                             menu.name.contains("Dimsum", true) -> "🥟"
-                            menu.name.contains("Kopi", true) || menu.name.contains("Teh", true) || menu.name.contains("Es", true) -> "🧋"
+                            menu.name.contains("Kopi", true) -> "☕"
+                            menu.name.contains("Teh", true) -> "🧋"
+                            menu.name.contains("Jus", true) -> "🍹"
                             else -> "🍛"
                         },
-                        standId = menu.standId
+                        standId = menu.standId ?: menu.stands?.id
                     )
                 }
             }
@@ -251,65 +259,67 @@ fun StudentDashboardScreen(
     Scaffold(
         containerColor = ScreenBg,
         topBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    EKantinLogoIcon(size = 36.dp)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(
-                            text = "Kantin 8",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = BluePrimary
-                        )
-                        Text(
-                            text = "SISWA",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = TextMuted,
-                            letterSpacing = 0.5.sp
-                        )
-                    }
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { Toast.makeText(context, "Pencarian Aktif", Toast.LENGTH_SHORT).show() }) {
-                        Icon(imageVector = Icons.Default.Search, contentDescription = "Search", tint = TextPrimary)
-                    }
-
-                    Box {
-                        IconButton(onClick = { onNavigateToNotifications() }) {
-                            Icon(imageVector = Icons.Default.Notifications, contentDescription = "Notify", tint = TextPrimary)
+            if (selectedNavTab == 0) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        EKantinLogoIcon(size = 36.dp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Kantin 8",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = BluePrimary
+                            )
+                            Text(
+                                text = "SISWA",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = TextMuted,
+                                letterSpacing = 0.5.sp
+                            )
                         }
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { Toast.makeText(context, "Pencarian Aktif", Toast.LENGTH_SHORT).show() }) {
+                            Icon(imageVector = Icons.Default.Search, contentDescription = "Search", tint = TextPrimary)
+                        }
+
+                        Box {
+                            IconButton(onClick = { onNavigateToNotifications() }) {
+                                Icon(imageVector = Icons.Default.Notifications, contentDescription = "Notify", tint = TextPrimary)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(top = 10.dp, end = 10.dp)
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFEA580C))
+                            )
+                        }
+
+                        // Profile / Logout Button for Demo
                         Box(
                             modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(top = 10.dp, end = 10.dp)
-                                .size(8.dp)
+                                .size(36.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFEA580C))
-                        )
-                    }
-
-                    // Profile / Logout Button for Demo
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFFEE2E2))
+                                .background(Color(0xFFFEE2E2))
                             .clickable {
                                 Toast.makeText(context, "Logout Berhasil", Toast.LENGTH_SHORT).show()
                                 onLogoutClick()
                             },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = Color(0xFFDC2626), modifier = Modifier.size(18.dp))
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(imageVector = Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = Color(0xFFDC2626), modifier = Modifier.size(18.dp))
+                        }
                     }
                 }
             }
@@ -330,10 +340,9 @@ fun StudentDashboardScreen(
                     selected = selectedNavTab == 1,
                     onClick = {
                         selectedNavTab = 1
-                        Toast.makeText(context, "Membuka Riwayat Pesanan...", Toast.LENGTH_SHORT).show()
                     },
                     icon = { Icon(imageVector = Icons.AutoMirrored.Filled.ReceiptLong, contentDescription = "Pesanan") },
-                    label = { Text("Pesanan", fontSize = 11.sp) },
+                    label = { Text("Pesanan", fontSize = 11.sp, fontWeight = if (selectedNavTab == 1) FontWeight.Bold else FontWeight.Normal) },
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = BluePrimary, selectedTextColor = BluePrimary, indicatorColor = BlueLightBg)
                 )
                 NavigationBarItem(
@@ -354,12 +363,20 @@ fun StudentDashboardScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
+            if (selectedNavTab == 1) {
+                StudentOrderHistoryScreen(
+                    onBackClick = { selectedNavTab = 0 },
+                    onOrderClick = onOrderClick,
+                    onOrderNewFoodClick = { selectedNavTab = 0 },
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
                 // 1. User Greeting & Loyalty Points Header Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -857,8 +874,9 @@ fun StudentDashboardScreen(
                     }
                 }
             }
-        }
+        } // end of else
     }
+}
 }
 
 @Preview(showBackground = true, showSystemUi = true)

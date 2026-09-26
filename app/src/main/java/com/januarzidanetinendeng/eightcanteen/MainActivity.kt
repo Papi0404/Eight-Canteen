@@ -26,6 +26,7 @@ import com.januarzidanetinendeng.eightcanteen.ui.checkout.CheckoutPaymentScreen
 import com.januarzidanetinendeng.eightcanteen.ui.components.NotificationScreen
 import com.januarzidanetinendeng.eightcanteen.ui.components.QrScannerScreen
 import com.januarzidanetinendeng.eightcanteen.ui.dashboard.StudentDashboardScreen
+import com.januarzidanetinendeng.eightcanteen.ui.dashboard.StudentOrderHistoryScreen
 import com.januarzidanetinendeng.eightcanteen.ui.login.LoginScreen
 import com.januarzidanetinendeng.eightcanteen.ui.otp.OtpVerificationScreen
 import com.januarzidanetinendeng.eightcanteen.ui.payment.StrukLunasScreen
@@ -47,6 +48,7 @@ enum class ScreenState {
     STAND_REGISTER,
     ADMIN_ADD_STAND,
     HOME_LOGGED_IN,
+    ORDER_HISTORY,
     POINTS_REWARD,
     PROFILE,
     CHECKOUT,
@@ -390,8 +392,27 @@ fun MainAppNavigation(
                 onCheckoutClick = {
                     currentScreen = ScreenState.CHECKOUT
                 },
+                onOrderClick = { orderId ->
+                    lastCreatedOrderId = orderId
+                    currentScreen = ScreenState.STRUK_LUNAS
+                },
                 onNavigateToNotifications = {
                     currentScreen = ScreenState.NOTIFICATIONS
+                }
+            )
+        }
+
+        ScreenState.ORDER_HISTORY -> {
+            StudentOrderHistoryScreen(
+                onBackClick = {
+                    currentScreen = ScreenState.HOME_LOGGED_IN
+                },
+                onOrderClick = { orderId ->
+                    lastCreatedOrderId = orderId
+                    currentScreen = ScreenState.STRUK_LUNAS
+                },
+                onOrderNewFoodClick = {
+                    currentScreen = ScreenState.HOME_LOGGED_IN
                 }
             )
         }
@@ -414,6 +435,9 @@ fun MainAppNavigation(
                 },
                 onNavigateToHome = {
                     currentScreen = ScreenState.HOME_LOGGED_IN
+                },
+                onNavigateToOrders = {
+                    currentScreen = ScreenState.ORDER_HISTORY
                 },
                 onNavigateToProfile = {
                     currentScreen = ScreenState.PROFILE

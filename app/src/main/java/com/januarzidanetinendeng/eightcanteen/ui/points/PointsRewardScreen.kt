@@ -97,11 +97,12 @@ fun PointsRewardScreen(
     currentPoints: Int = 25,
     onBackClick: () -> Unit = {},
     onNavigateToHome: () -> Unit = {},
+    onNavigateToOrders: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
-    var selectedNavTab by remember { mutableIntStateOf(0) } // Beranda
+    var selectedNavTab by remember { mutableIntStateOf(2) }
 
     val myVouchers = remember { mutableStateListOf<RewardItem>() }
 
@@ -196,7 +197,7 @@ fun PointsRewardScreen(
                     selected = selectedNavTab == 1,
                     onClick = {
                         selectedNavTab = 1
-                        Toast.makeText(context, "Membuka Riwayat Pesanan...", Toast.LENGTH_SHORT).show()
+                        onNavigateToOrders()
                     },
                     icon = { Icon(imageVector = Icons.AutoMirrored.Filled.ReceiptLong, contentDescription = "Pesanan") },
                     label = { Text("Pesanan", fontSize = 11.sp) },

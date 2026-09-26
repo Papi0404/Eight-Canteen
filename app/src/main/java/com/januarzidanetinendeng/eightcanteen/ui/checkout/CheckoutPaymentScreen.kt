@@ -23,10 +23,14 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -40,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.januarzidanetinendeng.eightcanteen.data.local.SessionManager
 import com.januarzidanetinendeng.eightcanteen.data.remote.OrderItemRequest
 import com.januarzidanetinendeng.eightcanteen.data.repository.CanteenRepository
 import com.januarzidanetinendeng.eightcanteen.ui.theme.BlueLightBg
@@ -65,12 +70,26 @@ fun CheckoutPaymentScreen(
     val scrollState = rememberScrollState()
     var selectedMethod by remember { mutableStateOf("QRIS") } // QRIS or TUNAI
     var isLoading by remember { mutableStateOf(false) }
+    var userPoints by remember { mutableIntStateOf(SessionManager.getInstance(context).getPoints()) }
+    var usePoints by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val repo = CanteenRepository()
+        repo.getMyProfile().onSuccess { res ->
+            res.data?.points?.let { pts ->
+                userPoints = pts
+                SessionManager.getInstance(context).updatePoints(pts)
+            }
+        }
+    }
 
     val cartUiState by cartViewModel.uiState.collectAsState()
     val items = cartUiState.cartItems
     val subtotal = cartUiState.subtotal
     val adminFee = if (selectedMethod == "QRIS") 1000 else 0
-    val totalPayment = subtotal + adminFee
+    val canRedeemPoints = userPoints >= 20
+    val pointsDiscount = if (usePoints && canRedeemPoints) 2000 else 0
+    val totalPayment = (subtotal + adminFee - pointsDiscount).coerceAtLeast(0.0)
 
     Scaffold(
         containerColor = ScreenBg,
@@ -146,7 +165,8 @@ fun CheckoutPaymentScreen(
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(text = "Istirahat 1 (10:15 WIB)", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        Text(text = "Stand 04 • Bang Ali", fontSize = 11.sp, color = Color.White.copy(alpha = 0.9f))
+                        val standNameText = items.firstOrNull { it.standName.isNotBlank() }?.standName ?: "Kantin SMKN 8"
+                        Text(text = "Lokasi: $standNameText", fontSize = 11.sp, color = Color.White.copy(alpha = 0.9f))
                     }
                     Text(text = "⏱️", fontSize = 32.sp)
                 }
@@ -300,7 +320,87 @@ fun CheckoutPaymentScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 3.5 Tukar Poin Siswa (Loyalty Reward)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (usePoints && canRedeemPoints) Color(0xFFEFF6FF) else Color.White
+                ),
+                border = BorderStroke(1.dp, if (usePoints && canRedeemPoints) BluePrimary else BorderColor)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(if (canRedeemPoints) Color(0xFFFEF3C7) else InputBg),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "🪙", fontSize = 20.sp)
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Tukar Poin Siswa",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFFEF3C7))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "$userPoints Poin",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFB45309)
+                                )
+                            }
+                        }
+                        Text(
+                            text = if (canRedeemPoints) {
+                                "Gunakan 20 Poin untuk potongan Rp 2.000"
+                            } else {
+                                "Minimal 20 poin untuk diskon (butuh ${20 - userPoints} poin lagi)"
+                            },
+                            fontSize = 11.sp,
+                            color = if (canRedeemPoints) TextSecondary else TextMuted
+                        )
+                    }
+                    Switch(
+                        checked = usePoints && canRedeemPoints,
+                        onCheckedChange = { isChecked ->
+                            if (canRedeemPoints) {
+                                usePoints = isChecked
+                            } else {
+                                Toast.makeText(context, "Poin Anda belum cukup (minimal 20 poin)", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        enabled = canRedeemPoints,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = BluePrimary,
+                            uncheckedThumbColor = TextMuted,
+                            uncheckedTrackColor = InputBg
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             // 4. Ringkasan Tagihan
             Card(
@@ -312,7 +412,7 @@ fun CheckoutPaymentScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(text = "Ringkasan Pembayaran", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                     Spacer(modifier = Modifier.height(12.dp))
-                    
+
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(text = "Total Harga (${items.size} Menu)", fontSize = 12.sp, color = TextSecondary)
                         Text(text = "Rp ${String.format(Locale.GERMANY, "%,d", subtotal.toLong())}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
@@ -322,11 +422,19 @@ fun CheckoutPaymentScreen(
                         Text(text = "Biaya Layanan Koperasi", fontSize = 12.sp, color = TextSecondary)
                         Text(text = if(adminFee > 0) "Rp ${String.format(Locale.GERMANY, "%,d", adminFee.toLong())}" else "Gratis", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if(adminFee > 0) TextPrimary else Color(0xFF16A34A))
                     }
-                    
+
+                    if (pointsDiscount > 0) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(text = "Diskon Tukar Poin (20 Poin)", fontSize = 12.sp, color = Color(0xFF16A34A), fontWeight = FontWeight.SemiBold)
+                            Text(text = "-Rp ${String.format(Locale.GERMANY, "%,d", pointsDiscount.toLong())}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF16A34A))
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(12.dp))
                     Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(BorderColor))
                     Spacer(modifier = Modifier.height(12.dp))
-                    
+
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text(text = "Total Tagihan", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                         Text(text = "Rp ${String.format(Locale.GERMANY, "%,d", totalPayment.toLong())}", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = BluePrimary)
@@ -335,7 +443,7 @@ fun CheckoutPaymentScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            
+
             // 5. Checkout Button
             Button(
                 onClick = {
@@ -346,29 +454,38 @@ fun CheckoutPaymentScreen(
                     isLoading = true
                     coroutineScope.launch {
                         val repo = CanteenRepository()
-                        val standIdToUse = items.firstOrNull()?.standId ?: "stand-1"
+                        val standIdToUse = items.firstOrNull { !it.standId.isNullOrBlank() }?.standId
+                            ?: "bf7b8db5-ce1c-4692-9dd9-e2e05d4a64dc"
                         val orderItems = items.map {
                             OrderItemRequest(
                                 menuId = it.id,
                                 quantity = it.quantity
                             )
                         }
+                        val isRedeeming = usePoints && canRedeemPoints
                         repo.createOrder(
                             standId = standIdToUse,
                             items = orderItems,
                             paymentMethod = selectedMethod,
-                            usePoints = false
+                            usePoints = isRedeeming
                         ).onSuccess { res ->
                             isLoading = false
-                            val orderId = res.data?.id ?: "ORDER-${System.currentTimeMillis()}"
-                            val orderNum = res.data?.orderNumber ?: "A-101"
+                            val order = res.data
+                            val orderId = order?.id ?: ""
+                            val orderNum = order?.orderNumber ?: ""
+
+                            if (isRedeeming) {
+                                val remainingPoints = (userPoints - 20).coerceAtLeast(0)
+                                userPoints = remainingPoints
+                                SessionManager.getInstance(context).updatePoints(remainingPoints)
+                            }
+
                             Toast.makeText(context, "Pesanan #$orderNum Berhasil Dibuat!", Toast.LENGTH_LONG).show()
                             onPaymentSuccess(selectedMethod, orderId)
                         }.onFailure { err ->
                             isLoading = false
-                            val orderId = "ORDER-${System.currentTimeMillis()}"
-                            Toast.makeText(context, "Mode Offline: Pesanan Berhasil Disimpan", Toast.LENGTH_SHORT).show()
-                            onPaymentSuccess(selectedMethod, orderId)
+                            val errorMsg = err.message ?: "Gagal memproses pesanan ke server"
+                            Toast.makeText(context, "Gagal Checkout: $errorMsg", Toast.LENGTH_LONG).show()
                         }
                     }
                 },
@@ -389,7 +506,7 @@ fun CheckoutPaymentScreen(
                     Text(text = "Bayar Sekarang", fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(40.dp))
         }
     }

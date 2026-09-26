@@ -79,6 +79,11 @@ interface ApiService {
         @Body request: CreateOrderRequest
     ): BaseResponse<OrderResponse>
 
+    @POST("orders/checkout")
+    suspend fun createOrderCheckout(
+        @Body request: CreateOrderRequest
+    ): BaseResponse<OrderResponse>
+
     @GET("orders")
     suspend fun getOrders(
         @Query("status") status: String? = null
@@ -172,16 +177,23 @@ data class StandResponse(
     @SerializedName("id") val id: String,
     @SerializedName("name") val name: String,
     @SerializedName("ownerName") val ownerName: String? = null,
-    @SerializedName("counterNumber") val counterNumber: String? = null,
-    @SerializedName("counterSlot") val counterSlot: String? = null,
-    @SerializedName("isOpen") val isOpen: Boolean? = true,
+    @SerializedName("counterNumber") private val _counterNumber: String? = null,
+    @SerializedName("stand_number") private val _stand_number: String? = null,
+    @SerializedName("counterSlot") private val _counterSlot: String? = null,
+    @SerializedName("isOpen") private val _isOpen: Boolean? = null,
+    @SerializedName("is_open") private val _is_open: Boolean? = null,
     @SerializedName("category") val category: String? = null,
     @SerializedName("rating") val rating: Double? = 4.8
-)
+) {
+    val counterSlot: String? get() = _counterSlot ?: _stand_number ?: _counterNumber
+    val counterNumber: String? get() = _counterNumber ?: _stand_number ?: _counterSlot
+    val isOpen: Boolean get() = _isOpen ?: _is_open ?: true
+}
 
 data class MenuResponse(
     @SerializedName("id") val id: String,
-    @SerializedName("stand_id") val standId: String? = null,
+    @SerializedName("stand_id") private val _stand_id: String? = null,
+    @SerializedName("standId") private val _standId: String? = null,
     @SerializedName("name") val name: String,
     @SerializedName("price") val price: Int,
     @SerializedName("stock") val stock: Int,
@@ -189,7 +201,9 @@ data class MenuResponse(
     @SerializedName("is_available") val isAvailable: Boolean = true,
     @SerializedName("prepareTime") val prepareTime: String? = "10 mnt",
     @SerializedName("stands") val stands: StandResponse? = null
-)
+) {
+    val standId: String? get() = _stand_id ?: _standId ?: stands?.id
+}
 
 data class CreateMenuRequest(
     @SerializedName("standId") val standId: String? = null,
@@ -225,28 +239,57 @@ data class OrderItemRequest(
 
 data class OrderResponse(
     @SerializedName("id") val id: String,
-    @SerializedName("orderNumber") val orderNumber: String? = null,
-    @SerializedName("standId") val standId: String? = null,
+    @SerializedName("orderNumber") private val _orderNumber: String? = null,
+    @SerializedName("order_number") private val _order_number: String? = null,
+    @SerializedName("standId") private val _standId: String? = null,
+    @SerializedName("stand_id") private val _stand_id: String? = null,
     @SerializedName("standName") val standName: String? = null,
-    @SerializedName("userId") val userId: String? = null,
+    @SerializedName("userId") private val _userId: String? = null,
+    @SerializedName("student_id") private val _student_id: String? = null,
     @SerializedName("studentName") val studentName: String? = null,
     @SerializedName("studentClass") val studentClass: String? = null,
     @SerializedName("items") val items: List<OrderItemDetail>? = null,
-    @SerializedName("totalAmount") val totalAmount: Int? = 0,
-    @SerializedName("paymentMethod") val paymentMethod: String? = null,
-    @SerializedName("status") val status: String? = null, // "PENDING", "COOKING", "READY", "COMPLETED", "CANCELLED"
-    @SerializedName("qrCode") val qrCode: String? = null,
-    @SerializedName("barcode") val barcode: String? = null,
+    @SerializedName("order_items") private val _order_items: List<OrderItemDetail>? = null,
+    @SerializedName("orderItems") private val _orderItems: List<OrderItemDetail>? = null,
+    @SerializedName("stands") val stands: StandResponse? = null,
+    @SerializedName("totalAmount") private val _totalAmount: Int? = null,
+    @SerializedName("total_amount") private val _total_amount: Int? = null,
+    @SerializedName("paymentMethod") private val _paymentMethod: String? = null,
+    @SerializedName("payment_method") private val _payment_method: String? = null,
+    @SerializedName("paymentStatus") private val _paymentStatus: String? = null,
+    @SerializedName("payment_status") private val _payment_status: String? = null,
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("qrCode") private val _qrCode: String? = null,
+    @SerializedName("barcode") private val _barcode: String? = null,
     @SerializedName("pickupTime") val pickupTime: String? = null,
-    @SerializedName("createdAt") val createdAt: String? = null
-)
+    @SerializedName("createdAt") private val _createdAt: String? = null,
+    @SerializedName("created_at") private val _created_at: String? = null
+) {
+    val orderNumber: String get() = _orderNumber ?: _order_number ?: id.take(8).uppercase()
+    val standId: String? get() = _standId ?: _stand_id ?: stands?.id
+    val userId: String? get() = _userId ?: _student_id
+    val totalAmount: Int get() = _totalAmount ?: _total_amount ?: 0
+    val paymentMethod: String? get() = _paymentMethod ?: _payment_method
+    val paymentStatus: String get() = _paymentStatus ?: _payment_status ?: "PENDING"
+    val qrCode: String? get() = _qrCode ?: _order_number ?: _orderNumber
+    val barcode: String? get() = _barcode ?: _order_number ?: _orderNumber
+    val createdAt: String? get() = _createdAt ?: _created_at
+    val orderItems: List<OrderItemDetail> get() = items ?: _order_items ?: _orderItems ?: emptyList()
+}
 
 data class OrderItemDetail(
-    @SerializedName("menuId") val menuId: String? = null,
+    @SerializedName("menuId") private val _menuId: String? = null,
+    @SerializedName("menu_id") private val _menu_id: String? = null,
     @SerializedName("menuName") val menuName: String? = null,
-    @SerializedName("price") val price: Int? = 0,
+    @SerializedName("menus") val menus: MenuResponse? = null,
+    @SerializedName("price") private val _price: Int? = null,
+    @SerializedName("price_at_time") private val _price_at_time: Int? = null,
     @SerializedName("quantity") val quantity: Int = 1
-)
+) {
+    val menuId: String? get() = _menuId ?: _menu_id ?: menus?.id
+    val name: String get() = menuName ?: menus?.name ?: "Menu Makanan"
+    val price: Int get() = _price ?: _price_at_time ?: menus?.price ?: 0
+}
 
 // Admin Models
 data class AdminCreateStandRequest(

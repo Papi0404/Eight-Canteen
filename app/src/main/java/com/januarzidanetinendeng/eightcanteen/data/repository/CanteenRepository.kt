@@ -91,9 +91,17 @@ class CanteenRepository(
         api.deleteMenu(menuId)
     }
 
-    // 4. Orders
     suspend fun createOrder(standId: String, items: List<OrderItemRequest>, paymentMethod: String, usePoints: Boolean = false, note: String? = null): Result<BaseResponse<OrderResponse>> = safeApiCall {
-        api.createOrder(CreateOrderRequest(standId = standId, items = items, paymentMethod = paymentMethod, usePoints = usePoints, note = note))
+        val req = CreateOrderRequest(standId = standId, items = items, paymentMethod = paymentMethod, usePoints = usePoints, note = note)
+        try {
+            api.createOrder(req)
+        } catch (e: HttpException) {
+            if (e.code() == 404) {
+                api.createOrderCheckout(req)
+            } else {
+                throw e
+            }
+        }
     }
 
     suspend fun getOrders(status: String? = null): Result<BaseResponse<List<OrderResponse>>> = safeApiCall {
