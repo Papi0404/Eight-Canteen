@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -20,8 +21,9 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Save
@@ -29,16 +31,20 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.Widgets
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -54,11 +60,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -89,6 +95,25 @@ data class SellerMenuItem(
     val foodEmoji: String
 )
 
+fun determineFoodEmoji(name: String): String {
+    val lower = name.lowercase()
+    return when {
+        lower.contains("jus") || lower.contains("juice") || lower.contains("alpukat") || lower.contains("mangga") -> "🧃"
+        lower.contains("kebab") -> "🥙"
+        lower.contains("ayam") || lower.contains("crispy") || lower.contains("geprek") -> "🍗"
+        lower.contains("sosis") -> "🌭"
+        lower.contains("roti") || lower.contains("maryam") -> "🫓"
+        lower.contains("kopi") || lower.contains("teh") || lower.contains("boba") -> "🧋"
+        lower.contains("mie") || lower.contains("bakso") || lower.contains("ramen") -> "🍜"
+        lower.contains("nasi") || lower.contains("rice") -> "🍚"
+        lower.contains("burger") -> "🍔"
+        lower.contains("pizza") -> "🍕"
+        lower.contains("es") -> "🍧"
+        lower.contains("buah") -> "🍎"
+        else -> "🍱"
+    }
+}
+
 @Composable
 fun SellerDashboardScreen(
     standName: String = "Kebab Bang Ali",
@@ -99,6 +124,7 @@ fun SellerDashboardScreen(
     readyCount: Int = 4,
     cookingCount: Int = 8,
     averagePrepMinutes: Int = 7,
+    onStandUpdated: (String, String) -> Unit = { _, _ -> },
     onScanQrClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {}
 ) {
@@ -106,9 +132,11 @@ fun SellerDashboardScreen(
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
+    var currentStandName by remember { mutableStateOf(standName) }
+    var currentCounterSlot by remember { mutableStateOf(counterSlot) }
     var isStoreOpen by remember { mutableStateOf(true) }
     var showNewOrderAlert by remember { mutableStateOf(true) }
-    var selectedNavTab by remember { mutableIntStateOf(0) } // Stand tab active (beranda)
+    var selectedNavTab by remember { mutableIntStateOf(0) }
 
     var currentTodayIncome by remember { mutableIntStateOf(todayIncome) }
     var currentCompletedOrders by remember { mutableIntStateOf(completedOrders) }
@@ -128,13 +156,82 @@ fun SellerDashboardScreen(
         )
     }
 
+    // CRUD Dialog States
+    var showEditStandDialog by remember { mutableStateOf(false) }
+    var editStandNameInput by remember { mutableStateOf("") }
+    var editCounterSlotInput by remember { mutableStateOf("") }
+    var isSavingStand by remember { mutableStateOf(false) }
+
+    var showAddMenuDialog by remember { mutableStateOf(false) }
+    var newMenuName by remember { mutableStateOf("") }
+    var newMenuPrice by remember { mutableStateOf("") }
+    var newMenuStock by remember { mutableStateOf("10") }
+    var isSavingNewMenu by remember { mutableStateOf(false) }
+
+    var editingMenuItem by remember { mutableStateOf<SellerMenuItem?>(null) }
+    var editMenuName by remember { mutableStateOf("") }
+    var editMenuPrice by remember { mutableStateOf("") }
+    var editMenuStock by remember { mutableStateOf("") }
+    var isSavingEditMenu by remember { mutableStateOf(false) }
+
+    var deletingMenuItem by remember { mutableStateOf<SellerMenuItem?>(null) }
+    var isDeletingMenu by remember { mutableStateOf(false) }
+
     val repository = remember { CanteenRepository() }
 
     LaunchedEffect(Unit) {
         val session = SessionManager.getInstance(context)
         val sellerStandId = session.getStandId()
 
-        // 1. Fetch Orders for stats
+        // 1. Fetch Stand info directly from Supabase via backend /stands/me
+        repository.getMyStand().onSuccess { res ->
+            res.data?.let { stand ->
+                val name = stand.name ?: currentStandName
+                val slot = stand.counterSlot ?: stand.standNumber ?: currentCounterSlot
+                currentStandName = name
+                currentCounterSlot = slot
+                stand.isOpen?.let { isStoreOpen = it }
+                session.saveStand(stand.id, name, slot)
+                onStandUpdated(name, slot)
+            }
+        }
+
+        // 2. Fetch Stand Menus from /menus/me (returns all seller menus)
+        val menusResult = repository.getMyMenus()
+        menusResult.onSuccess { res ->
+            res.data?.takeIf { it.isNotEmpty() }?.let { apiMenus ->
+                menuList = apiMenus.map { menu ->
+                    SellerMenuItem(
+                        id = menu.id,
+                        name = menu.name,
+                        price = menu.price,
+                        stock = menu.stock,
+                        isAvailable = menu.isAvailable,
+                        foodEmoji = determineFoodEmoji(menu.name)
+                    )
+                }
+            }
+        }.onFailure {
+            // Fallback via standId if /menus/me is unavailable
+            if (!sellerStandId.isNullOrBlank()) {
+                repository.getMenusByStand(sellerStandId).onSuccess { res ->
+                    res.data?.takeIf { it.isNotEmpty() }?.let { apiMenus ->
+                        menuList = apiMenus.map { menu ->
+                            SellerMenuItem(
+                                id = menu.id,
+                                name = menu.name,
+                                price = menu.price,
+                                stock = menu.stock,
+                                isAvailable = menu.isAvailable && menu.stock > 0,
+                                foodEmoji = determineFoodEmoji(menu.name)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Fetch Orders for stats
         repository.getOrders().onSuccess { res ->
             res.data?.let { orders ->
                 if (orders.isNotEmpty()) {
@@ -150,35 +247,6 @@ fun SellerDashboardScreen(
                     currentReadyCount = ready.size
                     currentCookingCount = cooking.size
                     currentActiveQueueCount = ready.size + cooking.size
-                }
-            }
-        }
-
-        // 2. Fetch Stand Menus
-        val menusResult = if (!sellerStandId.isNullOrBlank()) {
-            repository.getMenusByStand(sellerStandId)
-        } else {
-            repository.getAllMenus()
-        }
-
-        menusResult.onSuccess { res ->
-            res.data?.takeIf { it.isNotEmpty() }?.let { apiMenus ->
-                menuList = apiMenus.map { menu ->
-                    SellerMenuItem(
-                        id = menu.id,
-                        name = menu.name,
-                        price = menu.price,
-                        stock = menu.stock,
-                        isAvailable = menu.isAvailable && menu.stock > 0,
-                        foodEmoji = when {
-                            menu.name.contains("Kebab", true) -> "🥙"
-                            menu.name.contains("Ayam", true) || menu.name.contains("Crispy", true) -> "🍗"
-                            menu.name.contains("Sosis", true) -> "🌭"
-                            menu.name.contains("Roti", true) || menu.name.contains("Maryam", true) -> "🫓"
-                            menu.name.contains("Kopi", true) || menu.name.contains("Teh", true) -> "🧋"
-                            else -> "🍱"
-                        }
-                    )
                 }
             }
         }
@@ -208,7 +276,7 @@ fun SellerDashboardScreen(
                             color = BluePrimary
                         )
                         Text(
-                            text = "SELLER",
+                            text = "SELLER PANEL",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = TextMuted,
@@ -225,7 +293,7 @@ fun SellerDashboardScreen(
 
                     // Notification Bell with Active Indicator Dot
                     Box {
-                        IconButton(onClick = { Toast.makeText(context, "Pesanan Baru #A-145 Masuk!", Toast.LENGTH_SHORT).show() }) {
+                        IconButton(onClick = { Toast.makeText(context, "Pesanan Baru Masuk!", Toast.LENGTH_SHORT).show() }) {
                             Icon(imageVector = Icons.Default.Notifications, contentDescription = "Notify", tint = TextPrimary)
                         }
                         Box(
@@ -247,7 +315,12 @@ fun SellerDashboardScreen(
                             .clickable { onLogoutClick() },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = Color(0xFFDC2626), modifier = Modifier.size(18.dp))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Logout,
+                            contentDescription = "Logout",
+                            tint = Color(0xFFDC2626),
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             }
@@ -279,9 +352,15 @@ fun SellerDashboardScreen(
                 )
                 NavigationBarItem(
                     selected = selectedNavTab == 2,
-                    onClick = { selectedNavTab = 2 },
-                    icon = { Icon(imageVector = Icons.Default.ShoppingBag, contentDescription = "Menu") },
-                    label = { Text("Manajemen Menu", fontSize = 11.sp) },
+                    onClick = {
+                        selectedNavTab = 2
+                        newMenuName = ""
+                        newMenuPrice = ""
+                        newMenuStock = "10"
+                        showAddMenuDialog = true
+                    },
+                    icon = { Icon(imageVector = Icons.Default.ShoppingBag, contentDescription = "Tambah Menu") },
+                    label = { Text("Tambah Menu", fontSize = 11.sp) },
                     colors = NavigationBarItemDefaults.colors(selectedIconColor = BluePrimary, selectedTextColor = BluePrimary, indicatorColor = BlueLightBg)
                 )
             }
@@ -321,13 +400,13 @@ fun SellerDashboardScreen(
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
                                 Text(
-                                    text = "Pesanan Baru #A-145",
+                                    text = "Pesanan Baru Masuk",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
                                 )
                                 Text(
-                                    text = "1x Kebab Beef Jumbo Keju (Istirahat 1)",
+                                    text = "Periksa antrean untuk menyajikan pesanan tepat waktu",
                                     fontSize = 11.sp,
                                     color = Color.White.copy(alpha = 0.9f)
                                 )
@@ -351,7 +430,7 @@ fun SellerDashboardScreen(
 
             if (showNewOrderAlert) Spacer(modifier = Modifier.height(14.dp))
 
-            // 2. Stand Info & Open/Close Toggle Header Card
+            // 2. Stand Info & Open/Close Toggle Header Card + EDIT STAND BUTTON
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -364,7 +443,10 @@ fun SellerDashboardScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
                             Box(
                                 modifier = Modifier
                                     .size(52.dp)
@@ -380,7 +462,7 @@ fun SellerDashboardScreen(
 
                             Column {
                                 Text(
-                                    text = standName,
+                                    text = currentStandName,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = TextPrimary
@@ -395,7 +477,7 @@ fun SellerDashboardScreen(
                                             .background(BlueLightBg)
                                             .padding(horizontal = 8.dp, vertical = 2.dp)
                                     ) {
-                                        Text(text = counterSlot, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
+                                        Text(text = currentCounterSlot, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
                                     }
 
                                     Box(
@@ -407,11 +489,31 @@ fun SellerDashboardScreen(
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             ShieldCheckIcon(size = 10.dp, tint = Color(0xFFB45309))
                                             Spacer(modifier = Modifier.width(3.dp))
-                                            Text(text = "Koperasi", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFB45309))
+                                            Text(text = "Penjual Terverifikasi", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFB45309))
                                         }
                                     }
                                 }
                             }
+                        }
+
+                        // Edit Stand Button
+                        IconButton(
+                            onClick = {
+                                editStandNameInput = currentStandName
+                                editCounterSlotInput = currentCounterSlot
+                                showEditStandDialog = true
+                            },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(BlueLightBg)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit Stand",
+                                tint = BluePrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
 
@@ -443,7 +545,7 @@ fun SellerDashboardScreen(
                                     color = TextPrimary
                                 )
                                 Text(
-                                    text = if (isStoreOpen) "Menerima pesanan pre-order" else "Tidak menerima pesanan baru",
+                                    text = if (isStoreOpen) "Menerima pesanan siswa" else "Tidak menerima pesanan baru",
                                     fontSize = 10.sp,
                                     color = TextSecondary
                                 )
@@ -452,7 +554,13 @@ fun SellerDashboardScreen(
 
                         Switch(
                             checked = isStoreOpen,
-                            onCheckedChange = { isStoreOpen = it },
+                            onCheckedChange = { checked ->
+                                isStoreOpen = checked
+                                coroutineScope.launch {
+                                    repository.updateMyStand(isOpen = checked)
+                                    Toast.makeText(context, if (checked) "Stand dibuka untuk pesanan" else "Stand ditutup sementara", Toast.LENGTH_SHORT).show()
+                                }
+                            },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
                                 checkedTrackColor = BluePrimary,
@@ -504,14 +612,14 @@ fun SellerDashboardScreen(
 
                         Column {
                             Text(
-                                text = "SCAN QR SISWA",
-                                fontSize = 16.sp,
+                                text = "SCAN QR PESANAN SISWA",
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Color.White,
                                 letterSpacing = 0.5.sp
                             )
                             Text(
-                                text = "Verifikasi instan pengambilan pesanan",
+                                text = "Verifikasi instan pengambilan makanan siswa",
                                 fontSize = 11.sp,
                                 color = Color.White.copy(alpha = 0.9f)
                             )
@@ -543,7 +651,7 @@ fun SellerDashboardScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "PENDAPATAN HARI INI",
+                            text = "PENDAPATAN STAND HARI INI",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = TextMuted,
@@ -710,24 +818,34 @@ fun SellerDashboardScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 6. Manajemen Stok Menu Section
+            // 6. Manajemen Menu & Stok Section Header with "+ Tambah Menu" Button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(text = "Manajemen Stok Menu", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                    Text(text = "Update ketersediaan real-time", fontSize = 11.sp, color = TextSecondary)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = "Kelola Menu & Stok", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text(text = "Tambah, ubah nama, harga & stok menu", fontSize = 11.sp, color = TextSecondary)
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(BlueLightBg)
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                Button(
+                    onClick = {
+                        newMenuName = ""
+                        newMenuPrice = ""
+                        newMenuStock = "10"
+                        showAddMenuDialog = true
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = BluePrimary,
+                        contentColor = Color.White
+                    ),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    Text(text = "${menuList.count { it.isAvailable }} Menu Aktif", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
+                    Icon(imageVector = Icons.Default.Add, contentDescription = "Tambah Menu", modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "+ Tambah Menu", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -735,6 +853,28 @@ fun SellerDashboardScreen(
 
             // Stock Items List
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (menuList.isEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, BorderColor)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(text = "🍽️", fontSize = 36.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(text = "Belum Ada Menu Stand", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(text = "Klik '+ Tambah Menu' untuk mulai menambahkan menu makanan/minuman stand Anda.", fontSize = 12.sp, color = TextSecondary, textAlign = TextAlign.Center)
+                        }
+                    }
+                }
+
                 menuList.forEachIndexed { index, menu ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -775,9 +915,9 @@ fun SellerDashboardScreen(
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.width(12.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
 
-                                Column {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = menu.name,
                                         fontSize = 14.sp,
@@ -802,7 +942,7 @@ fun SellerDashboardScreen(
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
-                                            text = if (menu.isAvailable) "Tersedia" else "Stok Kosong",
+                                            text = if (menu.isAvailable) "Tersedia (${menu.stock} porsi)" else "Stok Kosong",
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = if (menu.isAvailable) Color(0xFF16A34A) else Color(0xFFDC2626)
@@ -811,8 +951,49 @@ fun SellerDashboardScreen(
                                 }
                             }
 
-                            // Quantity Increment / Decrement & Toggle
+                            // Actions: Edit, Delete, Stock Controls & Toggle
                             Column(horizontalAlignment = Alignment.End) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    // Edit Menu Button
+                                    IconButton(
+                                        onClick = {
+                                            editingMenuItem = menu
+                                            editMenuName = menu.name
+                                            editMenuPrice = menu.price.toString()
+                                            editMenuStock = menu.stock.toString()
+                                        },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Edit Menu",
+                                            tint = BluePrimary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+
+                                    // Delete Menu Button
+                                    IconButton(
+                                        onClick = {
+                                            deletingMenuItem = menu
+                                        },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.DeleteOutline,
+                                            contentDescription = "Hapus Menu",
+                                            tint = Color(0xFFDC2626),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(2.dp))
+
+                                // Quantity Increment / Decrement
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
@@ -824,7 +1005,8 @@ fun SellerDashboardScreen(
                                         onClick = {
                                             if (menu.stock > 0) {
                                                 val updated = menuList.toMutableList()
-                                                updated[index] = menu.copy(stock = menu.stock - 1, isAvailable = menu.stock - 1 > 0)
+                                                val newStock = menu.stock - 1
+                                                updated[index] = menu.copy(stock = newStock, isAvailable = newStock > 0)
                                                 menuList = updated
                                             }
                                         },
@@ -838,13 +1020,14 @@ fun SellerDashboardScreen(
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = TextPrimary,
-                                        modifier = Modifier.padding(horizontal = 8.dp)
+                                        modifier = Modifier.padding(horizontal = 6.dp)
                                     )
 
                                     IconButton(
                                         onClick = {
                                             val updated = menuList.toMutableList()
-                                            updated[index] = menu.copy(stock = menu.stock + 1, isAvailable = true)
+                                            val newStock = menu.stock + 1
+                                            updated[index] = menu.copy(stock = newStock, isAvailable = true)
                                             menuList = updated
                                         },
                                         modifier = Modifier.size(26.dp)
@@ -853,16 +1036,17 @@ fun SellerDashboardScreen(
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.height(2.dp))
 
                                 Switch(
                                     checked = menu.isAvailable,
                                     onCheckedChange = { checked ->
                                         val updated = menuList.toMutableList()
-                                        updated[index] = menu.copy(isAvailable = checked, stock = if (checked && menu.stock == 0) 5 else menu.stock)
+                                        val updatedStock = if (checked && menu.stock == 0) 5 else menu.stock
+                                        updated[index] = menu.copy(isAvailable = checked, stock = updatedStock)
                                         menuList = updated
                                         coroutineScope.launch {
-                                            repository.updateMenu(menu.id, isAvailable = checked)
+                                            repository.updateMenu(menu.id, isAvailable = checked, stock = updatedStock)
                                         }
                                     },
                                     colors = SwitchDefaults.colors(
@@ -880,13 +1064,13 @@ fun SellerDashboardScreen(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // 7. Save Stock Changes Button
+            // 7. Save Stock Changes Button (Persists all modified stocks to Supabase)
             Button(
                 onClick = {
                     coroutineScope.launch {
                         var updateCount = 0
                         menuList.forEach { item ->
-                            repository.updateMenuStock(item.id, item.stock).onSuccess {
+                            repository.updateMenu(item.id, stock = item.stock, isAvailable = item.isAvailable).onSuccess {
                                 updateCount++
                             }
                         }
@@ -906,12 +1090,459 @@ fun SellerDashboardScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(imageVector = Icons.Default.Save, contentDescription = "Save", modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Simpan Perubahan Stok", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Simpan Perubahan Stok ke Database", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    // ==========================================
+    // DIALOG 1: EDIT NAMA & NOMOR STAND
+    // ==========================================
+    if (showEditStandDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!isSavingStand) showEditStandDialog = false },
+            title = {
+                Text(
+                    text = "Edit Profil Stand",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Perbarui nama stand kantin dan slot loket penjualan Anda:",
+                        fontSize = 12.sp,
+                        color = TextSecondary
+                    )
+
+                    OutlinedTextField(
+                        value = editStandNameInput,
+                        onValueChange = { editStandNameInput = it },
+                        label = { Text("Nama Stand Kantin") },
+                        placeholder = { Text("Contoh: Jus Buah Segar Bang Ijul") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = InputBg,
+                            unfocusedContainerColor = InputBg,
+                            focusedBorderColor = BluePrimary,
+                            unfocusedBorderColor = BorderColor
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = editCounterSlotInput,
+                        onValueChange = { editCounterSlotInput = it },
+                        label = { Text("Nomor / Lokasi Stand") },
+                        placeholder = { Text("Contoh: Stand 02") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = InputBg,
+                            unfocusedContainerColor = InputBg,
+                            focusedBorderColor = BluePrimary,
+                            unfocusedBorderColor = BorderColor
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (editStandNameInput.isBlank()) {
+                            Toast.makeText(context, "Nama stand tidak boleh kosong", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        coroutineScope.launch {
+                            isSavingStand = true
+                            val result = repository.updateMyStand(
+                                name = editStandNameInput.trim(),
+                                counterSlot = editCounterSlotInput.trim()
+                            )
+                            isSavingStand = false
+                            result.onSuccess { res ->
+                                val updatedName = res.data?.name ?: editStandNameInput.trim()
+                                val updatedSlot = res.data?.counterSlot ?: res.data?.standNumber ?: editCounterSlotInput.trim()
+                                currentStandName = updatedName
+                                currentCounterSlot = updatedSlot
+                                val session = SessionManager.getInstance(context)
+                                session.saveStand(session.getStandId(), updatedName, updatedSlot)
+                                onStandUpdated(updatedName, updatedSlot)
+                                showEditStandDialog = false
+                                Toast.makeText(context, "Nama & Lokasi Stand Berhasil Disimpan!", Toast.LENGTH_SHORT).show()
+                            }.onFailure {
+                                currentStandName = editStandNameInput.trim()
+                                currentCounterSlot = editCounterSlotInput.trim()
+                                onStandUpdated(currentStandName, currentCounterSlot)
+                                showEditStandDialog = false
+                                Toast.makeText(context, "Profil Stand Diperbarui Secara Lokal", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isSavingStand
+                ) {
+                    if (isSavingStand) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                    } else {
+                        Text("Simpan Perubahan")
+                    }
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showEditStandDialog = false },
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isSavingStand
+                ) {
+                    Text("Batal", color = TextPrimary)
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+
+    // ==========================================
+    // DIALOG 2: TAMBAH MENU BARU
+    // ==========================================
+    if (showAddMenuDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!isSavingNewMenu) showAddMenuDialog = false },
+            title = {
+                Text(
+                    text = "Tambah Menu Baru",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Masukkan detail menu makanan/minuman yang akan dijual:",
+                        fontSize = 12.sp,
+                        color = TextSecondary
+                    )
+
+                    OutlinedTextField(
+                        value = newMenuName,
+                        onValueChange = { newMenuName = it },
+                        label = { Text("Nama Menu") },
+                        placeholder = { Text("Contoh: Jus Alpukat Spesial") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = InputBg,
+                            unfocusedContainerColor = InputBg,
+                            focusedBorderColor = BluePrimary,
+                            unfocusedBorderColor = BorderColor
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = newMenuPrice,
+                        onValueChange = { newMenuPrice = it.filter { c -> c.isDigit() } },
+                        label = { Text("Harga (Rp)") },
+                        placeholder = { Text("Contoh: 12000") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = InputBg,
+                            unfocusedContainerColor = InputBg,
+                            focusedBorderColor = BluePrimary,
+                            unfocusedBorderColor = BorderColor
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = newMenuStock,
+                        onValueChange = { newMenuStock = it.filter { c -> c.isDigit() } },
+                        label = { Text("Stok Awal") },
+                        placeholder = { Text("Contoh: 15") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = InputBg,
+                            unfocusedContainerColor = InputBg,
+                            focusedBorderColor = BluePrimary,
+                            unfocusedBorderColor = BorderColor
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (newMenuName.isBlank()) {
+                            Toast.makeText(context, "Nama menu tidak boleh kosong", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        val priceInt = newMenuPrice.toIntOrNull() ?: 10000
+                        val stockInt = newMenuStock.toIntOrNull() ?: 10
+
+                        coroutineScope.launch {
+                            isSavingNewMenu = true
+                            val result = repository.createMenu(
+                                standId = null,
+                                name = newMenuName.trim(),
+                                price = priceInt,
+                                stock = stockInt
+                            )
+                            isSavingNewMenu = false
+                            result.onSuccess { res ->
+                                val created = res.data
+                                val newItem = SellerMenuItem(
+                                    id = created?.id ?: System.currentTimeMillis().toString(),
+                                    name = created?.name ?: newMenuName.trim(),
+                                    price = created?.price ?: priceInt,
+                                    stock = created?.stock ?: stockInt,
+                                    isAvailable = (created?.stock ?: stockInt) > 0,
+                                    foodEmoji = determineFoodEmoji(created?.name ?: newMenuName.trim())
+                                )
+                                menuList = listOf(newItem) + menuList
+                                showAddMenuDialog = false
+                                Toast.makeText(context, "Menu '${newItem.name}' Berhasil Ditambahkan!", Toast.LENGTH_SHORT).show()
+                            }.onFailure { e ->
+                                val newItem = SellerMenuItem(
+                                    id = System.currentTimeMillis().toString(),
+                                    name = newMenuName.trim(),
+                                    price = priceInt,
+                                    stock = stockInt,
+                                    isAvailable = stockInt > 0,
+                                    foodEmoji = determineFoodEmoji(newMenuName.trim())
+                                )
+                                menuList = listOf(newItem) + menuList
+                                showAddMenuDialog = false
+                                Toast.makeText(context, "Menu Ditambahkan ke Daftar Stand!", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isSavingNewMenu
+                ) {
+                    if (isSavingNewMenu) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                    } else {
+                        Text("Tambah Menu")
+                    }
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showAddMenuDialog = false },
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isSavingNewMenu
+                ) {
+                    Text("Batal", color = TextPrimary)
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+
+    // ==========================================
+    // DIALOG 3: EDIT MENU (NAMA, HARGA, STOK)
+    // ==========================================
+    editingMenuItem?.let { item ->
+        AlertDialog(
+            onDismissRequest = { if (!isSavingEditMenu) editingMenuItem = null },
+            title = {
+                Text(
+                    text = "Edit Detail Menu",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Ubah nama, harga, atau stok menu:",
+                        fontSize = 12.sp,
+                        color = TextSecondary
+                    )
+
+                    OutlinedTextField(
+                        value = editMenuName,
+                        onValueChange = { editMenuName = it },
+                        label = { Text("Nama Menu") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = InputBg,
+                            unfocusedContainerColor = InputBg,
+                            focusedBorderColor = BluePrimary,
+                            unfocusedBorderColor = BorderColor
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = editMenuPrice,
+                        onValueChange = { editMenuPrice = it.filter { c -> c.isDigit() } },
+                        label = { Text("Harga (Rp)") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = InputBg,
+                            unfocusedContainerColor = InputBg,
+                            focusedBorderColor = BluePrimary,
+                            unfocusedBorderColor = BorderColor
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = editMenuStock,
+                        onValueChange = { editMenuStock = it.filter { c -> c.isDigit() } },
+                        label = { Text("Stok Tersedia") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = InputBg,
+                            unfocusedContainerColor = InputBg,
+                            focusedBorderColor = BluePrimary,
+                            unfocusedBorderColor = BorderColor
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (editMenuName.isBlank()) {
+                            Toast.makeText(context, "Nama menu tidak boleh kosong", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        val priceInt = editMenuPrice.toIntOrNull() ?: item.price
+                        val stockInt = editMenuStock.toIntOrNull() ?: item.stock
+
+                        coroutineScope.launch {
+                            isSavingEditMenu = true
+                            repository.updateMenu(
+                                menuId = item.id,
+                                name = editMenuName.trim(),
+                                price = priceInt,
+                                stock = stockInt,
+                                isAvailable = stockInt > 0
+                            )
+                            isSavingEditMenu = false
+
+                            menuList = menuList.map { m ->
+                                if (m.id == item.id) {
+                                    m.copy(
+                                        name = editMenuName.trim(),
+                                        price = priceInt,
+                                        stock = stockInt,
+                                        isAvailable = stockInt > 0,
+                                        foodEmoji = determineFoodEmoji(editMenuName.trim())
+                                    )
+                                } else m
+                            }
+                            editingMenuItem = null
+                            Toast.makeText(context, "Menu Berhasil Diperbarui!", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isSavingEditMenu
+                ) {
+                    if (isSavingEditMenu) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                    } else {
+                        Text("Simpan")
+                    }
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { editingMenuItem = null },
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isSavingEditMenu
+                ) {
+                    Text("Batal", color = TextPrimary)
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+
+    // ==========================================
+    // DIALOG 4: KONFIRMASI HAPUS MENU
+    // ==========================================
+    deletingMenuItem?.let { item ->
+        AlertDialog(
+            onDismissRequest = { if (!isDeletingMenu) deletingMenuItem = null },
+            title = {
+                Text(
+                    text = "Hapus Menu?",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFDC2626)
+                )
+            },
+            text = {
+                Text(
+                    text = "Apakah Anda yakin ingin menghapus '${item.name}' dari stand Anda? Tindakan ini tidak dapat dibatalkan.",
+                    fontSize = 13.sp,
+                    color = TextPrimary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            isDeletingMenu = true
+                            repository.deleteMenu(item.id)
+                            isDeletingMenu = false
+                            menuList = menuList.filter { it.id != item.id }
+                            deletingMenuItem = null
+                            Toast.makeText(context, "Menu '${item.name}' Berhasil Dihapus", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isDeletingMenu
+                ) {
+                    if (isDeletingMenu) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                    } else {
+                        Text("Hapus Menu", color = Color.White)
+                    }
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { deletingMenuItem = null },
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isDeletingMenu
+                ) {
+                    Text("Batal", color = TextPrimary)
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(20.dp)
+        )
     }
 }
 

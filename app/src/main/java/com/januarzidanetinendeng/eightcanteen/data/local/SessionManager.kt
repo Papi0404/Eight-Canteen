@@ -75,6 +75,15 @@ class SessionManager(context: Context) {
         }
     }
 
+    fun saveStand(standId: String? = null, standName: String? = null, counterSlot: String? = null) {
+        prefs.edit().apply {
+            if (standId != null) putString(KEY_STAND_ID, standId)
+            if (standName != null) putString(KEY_STAND_NAME, standName)
+            if (counterSlot != null) putString(KEY_COUNTER_SLOT, counterSlot)
+            apply()
+        }
+    }
+
     fun getUserId(): String? = prefs.getString(KEY_USER_ID, null)
     fun getUserName(): String = prefs.getString(KEY_USER_NAME, "Pengguna") ?: "Pengguna"
     fun getUserRole(): String = prefs.getString(KEY_USER_ROLE, "Siswa") ?: "Siswa"

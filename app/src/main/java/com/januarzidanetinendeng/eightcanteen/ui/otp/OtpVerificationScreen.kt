@@ -88,7 +88,7 @@ fun OtpVerificationScreen(
     phoneNumber: String = "812-3456-7890",
     onBackClick: () -> Unit = {},
     onEditPhoneClick: () -> Unit = {},
-    onVerificationSuccess: (String) -> Unit = {}
+    onVerificationSuccess: (String, com.januarzidanetinendeng.eightcanteen.data.remote.UserProfile?) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -345,7 +345,9 @@ fun OtpVerificationScreen(
                         isLoading = false
                         result.onSuccess { response ->
                             val loginData = response.data
+                            var verifiedUser: com.januarzidanetinendeng.eightcanteen.data.remote.UserProfile? = null
                             if (loginData != null) {
+                                verifiedUser = loginData.user
                                 // Simpan JWT token ke SessionManager & ApiConfig
                                 val session = SessionManager.getInstance(context)
                                 session.saveAuthToken(loginData.token)
@@ -371,7 +373,7 @@ fun OtpVerificationScreen(
                             }
                             errorMessage = null
                             Toast.makeText(context, response.message ?: "Verifikasi Berhasil!", Toast.LENGTH_SHORT).show()
-                            onVerificationSuccess(otpCode)
+                            onVerificationSuccess(otpCode, verifiedUser)
                         }.onFailure { e ->
                             val errorMsg = e.message ?: "Kode OTP salah atau telah kadaluarsa"
                             errorMessage = errorMsg

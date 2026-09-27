@@ -288,34 +288,35 @@ fun MainAppNavigation(
                 onEditPhoneClick = {
                     currentScreen = ScreenState.LOGIN
                 },
-                onVerificationSuccess = { otp ->
-                    val cleanPhone = userPhoneNumber.replace("-", "")
+                onVerificationSuccess = { otp, verifiedUser ->
+                    val cleanPhone = userPhoneNumber.replace("-", "").trim()
                     val session = SessionManager.getInstance(context)
-                    val savedRole = session.getUserRole().lowercase()
-                    val savedName = session.getUserName()
-                    val savedClass = session.getStudentClass() ?: studentClass
-                    val savedStand = session.getStandName() ?: sellerStandName
-                    val savedSlot = session.getCounterSlot() ?: sellerCounterSlot
+                    val resolvedRole = (verifiedUser?.role ?: session.getUserRole()).lowercase()
+                    val resolvedName = (verifiedUser?.resolvedName ?: verifiedUser?.fullName ?: verifiedUser?.name ?: session.getUserName()).trim()
+                    val resolvedClass = (verifiedUser?.resolvedClass ?: verifiedUser?.studentClass ?: verifiedUser?.className ?: session.getStudentClass() ?: studentClass).trim()
+                    val resolvedStand = (verifiedUser?.stand?.name ?: session.getStandName() ?: sellerStandName).trim()
+                    val resolvedSlot = (verifiedUser?.stand?.counterSlot ?: session.getCounterSlot() ?: sellerCounterSlot).trim()
 
-                    studentName = savedName
-                    studentClass = savedClass
-                    sellerStandName = savedStand
-                    sellerCounterSlot = savedSlot
+                    studentName = if (resolvedName.equals("EMPTY", ignoreCase = true)) "Pengguna" else resolvedName
+                    studentClass = resolvedClass
+                    sellerStandName = resolvedStand
+                    sellerCounterSlot = resolvedSlot
 
                     when {
-                        savedRole.contains("admin") || cleanPhone.startsWith("811") -> {
+                        resolvedRole.contains("admin") -> {
                             currentUserRole = UserRole.ADMIN
                             currentScreen = ScreenState.ADMIN_DASHBOARD
-                            Toast.makeText(context, "Login sebagai Admin Koperasi", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Login sebagai Admin Kantin", Toast.LENGTH_SHORT).show()
                         }
-                        savedRole.contains("penjual") || savedRole.contains("seller") || cleanPhone.startsWith("822") -> {
+                        resolvedRole.contains("penjual") || resolvedRole.contains("seller") || cleanPhone.startsWith("822") || cleanPhone.startsWith("856") -> {
                             currentUserRole = UserRole.SELLER
                             currentScreen = ScreenState.SELLER_DASHBOARD
-                            Toast.makeText(context, "Login sebagai Penjual/Tenant", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Login berhasil sebagai Penjual Stand ($resolvedStand)", Toast.LENGTH_SHORT).show()
                         }
                         else -> {
                             currentUserRole = UserRole.STUDENT
-                            if (session.isProfileComplete()) {
+                            val isComplete = session.isProfileComplete() || (!verifiedUser?.fullName.isNullOrBlank() && !verifiedUser?.fullName.equals("EMPTY", true) && !verifiedUser?.className.isNullOrBlank())
+                            if (isComplete) {
                                 currentScreen = ScreenState.HOME_LOGGED_IN
                             } else {
                                 currentScreen = ScreenState.STUDENT_REGISTER
@@ -549,6 +550,10 @@ fun MainAppNavigation(
                 readyCount = 4,
                 cookingCount = 8,
                 averagePrepMinutes = 7,
+                onStandUpdated = { newName, newSlot ->
+                    sellerStandName = newName
+                    sellerCounterSlot = newSlot
+                },
                 onScanQrClick = {
                     currentScreen = ScreenState.SCAN_QR
                 },

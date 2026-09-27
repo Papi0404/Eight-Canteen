@@ -100,6 +100,48 @@ class CanteenRepository(
         api.getStands()
     }
 
+    suspend fun getMyStand(): Result<BaseResponse<StandResponse>> = safeApiCall {
+        api.getMyStand()
+    }
+
+    suspend fun updateMyStand(
+        name: String? = null,
+        counterSlot: String? = null,
+        category: String? = null,
+        isOpen: Boolean? = null
+    ): Result<BaseResponse<StandResponse>> = safeApiCall {
+        api.updateMyStand(
+            UpdateStandRequest(
+                name = name,
+                standName = name,
+                counterSlot = counterSlot,
+                standNumber = counterSlot,
+                category = category,
+                isOpen = isOpen
+            )
+        )
+    }
+
+    suspend fun updateStand(
+        standId: String,
+        name: String? = null,
+        counterSlot: String? = null,
+        category: String? = null,
+        isOpen: Boolean? = null
+    ): Result<BaseResponse<StandResponse>> = safeApiCall {
+        api.updateStand(
+            standId = standId,
+            request = UpdateStandRequest(
+                name = name,
+                standName = name,
+                counterSlot = counterSlot,
+                standNumber = counterSlot,
+                category = category,
+                isOpen = isOpen
+            )
+        )
+    }
+
     suspend fun getMenusByStand(standId: String): Result<BaseResponse<List<MenuResponse>>> = safeApiCall {
         api.getMenusByStand(standId)
     }
@@ -108,12 +150,16 @@ class CanteenRepository(
         api.getAllMenus()
     }
 
+    suspend fun getMyMenus(): Result<BaseResponse<List<MenuResponse>>> = safeApiCall {
+        api.getMyMenus()
+    }
+
     suspend fun createMenu(standId: String?, name: String, price: Int, stock: Int, imageUrl: String? = null): Result<BaseResponse<MenuResponse>> = safeApiCall {
         api.createMenu(CreateMenuRequest(standId = standId, name = name, price = price, stock = stock, image = imageUrl))
     }
 
-    suspend fun updateMenu(menuId: String, name: String? = null, price: Int? = null, isAvailable: Boolean? = null): Result<BaseResponse<MenuResponse>> = safeApiCall {
-        api.updateMenu(menuId, UpdateMenuRequest(name = name, price = price, isAvailable = isAvailable))
+    suspend fun updateMenu(menuId: String, name: String? = null, price: Int? = null, stock: Int? = null, isAvailable: Boolean? = null): Result<BaseResponse<MenuResponse>> = safeApiCall {
+        api.updateMenu(menuId, UpdateMenuRequest(name = name, price = price, stock = stock, isAvailable = isAvailable))
     }
 
     suspend fun updateMenuStock(menuId: String, stock: Int): Result<BaseResponse<MenuResponse>> = safeApiCall {

@@ -46,6 +46,20 @@ interface ApiService {
     @GET("stands")
     suspend fun getStands(): BaseResponse<List<StandResponse>>
 
+    @GET("stands/me")
+    suspend fun getMyStand(): BaseResponse<StandResponse>
+
+    @PATCH("stands/me")
+    suspend fun updateMyStand(
+        @Body request: UpdateStandRequest
+    ): BaseResponse<StandResponse>
+
+    @PATCH("stands/{standId}")
+    suspend fun updateStand(
+        @Path("standId") standId: String,
+        @Body request: UpdateStandRequest
+    ): BaseResponse<StandResponse>
+
     @GET("stands/{standId}/menus")
     suspend fun getMenusByStand(
         @Path("standId") standId: String
@@ -53,6 +67,9 @@ interface ApiService {
 
     @GET("menus")
     suspend fun getAllMenus(): BaseResponse<List<MenuResponse>>
+
+    @GET("menus/me")
+    suspend fun getMyMenus(): BaseResponse<List<MenuResponse>>
 
     @POST("menus")
     suspend fun createMenu(
@@ -186,6 +203,7 @@ data class UserProfile(
     @SerializedName("isProfileComplete") val isProfileComplete: Boolean? = null
 ) {
     val resolvedClass: String? get() = studentClass ?: className ?: class_name
+    val resolvedName: String? get() = fullName ?: name
 }
 
 data class UpdateProfileRequest(
@@ -212,6 +230,7 @@ data class StandResponse(
 ) {
     val counterSlot: String? get() = _counterSlot ?: _stand_number ?: _counterNumber
     val counterNumber: String? get() = _counterNumber ?: _stand_number ?: _counterSlot
+    val standNumber: String? get() = _stand_number ?: _counterSlot ?: _counterNumber
     val isOpen: Boolean get() = _isOpen ?: _is_open ?: true
 }
 
@@ -238,9 +257,19 @@ data class CreateMenuRequest(
     @SerializedName("image") val image: String? = null
 )
 
+data class UpdateStandRequest(
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("standName") val standName: String? = null,
+    @SerializedName("standNumber") val standNumber: String? = null,
+    @SerializedName("counterSlot") val counterSlot: String? = null,
+    @SerializedName("category") val category: String? = null,
+    @SerializedName("isOpen") val isOpen: Boolean? = null
+)
+
 data class UpdateMenuRequest(
     @SerializedName("name") val name: String? = null,
     @SerializedName("price") val price: Int? = null,
+    @SerializedName("stock") val stock: Int? = null,
     @SerializedName("isAvailable") val isAvailable: Boolean? = null
 )
 

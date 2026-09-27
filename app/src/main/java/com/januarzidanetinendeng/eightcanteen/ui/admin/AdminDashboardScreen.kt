@@ -211,7 +211,7 @@ fun AdminDashboardScreen(
                             color = BluePrimary
                         )
                         Text(
-                            text = "ADMIN",
+                            text = "SELLER",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = TextMuted,
@@ -222,7 +222,7 @@ fun AdminDashboardScreen(
 
                 // Right Action Icons
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { Toast.makeText(context, "Pencarian Laporan Koperasi", Toast.LENGTH_SHORT).show() }) {
+                    IconButton(onClick = { Toast.makeText(context, "Pencarian Laporan Stand", Toast.LENGTH_SHORT).show() }) {
                         Icon(imageVector = Icons.Default.Search, contentDescription = "Search", tint = TextPrimary)
                     }
 
@@ -473,7 +473,7 @@ fun AdminDashboardScreen(
                     ) {
                         Column {
                             Text(text = "Pendaftaran Stand Baru", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
-                            Text(text = "Menunggu verifikasi admin koperasi", fontSize = 11.sp, color = TextSecondary)
+                            Text(text = "Kelola dan verifikasi pendaftaran stand", fontSize = 11.sp, color = TextSecondary)
                         }
 
                         // Add Manual Button

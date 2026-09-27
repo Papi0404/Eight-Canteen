@@ -217,7 +217,7 @@ fun AdminAddStandScreen(
                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
                             Text(
-                                text = "🟡 ADMIN PORTAL",
+                                text = "🟡 SELLER PORTAL",
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFB45309)
@@ -300,7 +300,7 @@ fun AdminAddStandScreen(
                         Spacer(modifier = Modifier.height(2.dp))
 
                         Text(
-                            text = "Admin cukup daftarkan nomor WhatsApp aktif. Penjual langsung dapat masuk ke Seller Dashboard via HP pribadi tanpa proses verifikasi manual.",
+                            text = "Daftarkan nomor WhatsApp aktif penjual. Penjual langsung dapat masuk ke Seller Dashboard via HP pribadi tanpa proses verifikasi manual.",
                             fontSize = 11.sp,
                             color = TextSecondary,
                             lineHeight = 15.sp
