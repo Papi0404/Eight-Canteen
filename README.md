@@ -20,7 +20,7 @@
 
 ## Tentang Aplikasi
 
-**Eight Canteen** adalah aplikasi mobile berbasis Android yang dirancang khusus untuk digitalisasi ekosistem kantin sekolah di **SMKN 8 Jakarta**. Aplikasi ini menghubungkan siswa dan penjual stan kantin dalam satu platform terintegrasi. 
+**Eight Canteen** adalah aplikasi mobile berbasis Android yang dirancang khusus untuk digitalisasi ekosistem kantin sekolah di **SMKN 8 Jakarta**. Aplikasi ini menghubungkan siswa dan penjual stan kantin dalam satu platform terintegrasi, yang terhubung langsung dengan backend service pada repository: [backend-kantin-mobile](https://github.com/alviangalen/backend-kantin-mobile.git).
 
 Dengan Eight Canteen, siswa dapat memesan makanan/minuman tanpa perlu mengantre lama saat jam istirahat, melakukan pembayaran non-tunai (QRIS) maupun tunai di kasir, memindai QR code stan secara instan, serta mengumpulkan poin reward setiap transaksi.
 
@@ -54,6 +54,7 @@ Dengan Eight Canteen, siswa dapat memesan makanan/minuman tanpa perlu mengantre 
 - **UI Framework**: [Jetpack Compose](https://developer.android.com/jetpack/compose) + [Material 3](https://m3.material.io/)
 - **Arsitektur**: MVVM (Model-View-ViewModel) + Repository Pattern
 - **Networking**: [Retrofit 2](https://square.github.io/retrofit/) + [OkHttp 3](https://square.github.io/okhttp/) Logging Interceptor
+- **Backend API**: Terhubung ke RESTful API di repository [alviangalen/backend-kantin-mobile](https://github.com/alviangalen/backend-kantin-mobile.git)
 - **JSON Serialization**: Google Gson
 - **Hardware & Vision**: [CameraX](https://developer.android.com/training/camerax) & [Google ML Kit Barcode Scanning](https://developers.google.com/ml-kit/vision/barcode-scanning)
 - **Asinkron & Reaktivitas**: Kotlin Coroutines & StateFlow
@@ -104,15 +105,18 @@ Eight-Canteen/
 
 ---
 
-## Konfigurasi Environment (`.env`)
+## Konfigurasi Environment (`.env`) & Backend
 
-Aplikasi membaca konfigurasi backend secara otomatis saat proses build melalui file `.env` di direktori utama:
+Aplikasi Android ini berkomunikasi langsung dengan backend service yang dikembangkan di repository:
+👉 **[https://github.com/alviangalen/backend-kantin-mobile.git](https://github.com/alviangalen/backend-kantin-mobile.git)**
+
+Konfigurasi koneksi dibaca secara otomatis saat proses build melalui file `.env` di direktori utama:
 
 1. Salin `.env.example` menjadi `.env`:
    ```bash
    cp .env.example .env
    ```
-2. Sesuaikan konfigurasi URL server dan API key:
+2. Sesuaikan konfigurasi URL server dan API key yang sesuai dengan backend `backend-kantin-mobile`:
    ```env
    BASE_URL=https://api-eight-canteen.onrender.com/api/v1/
    API_KEY=your_x_api_key_here
