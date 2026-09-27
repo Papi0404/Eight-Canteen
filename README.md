@@ -195,8 +195,20 @@ Jika Anda ingin langsung menghasilkan file `.apk` tanpa membuka antarmuka Androi
 
 ---
 
-## Pengembang & Kontributor
+## Tim Pengembang
 
-- **Pengembang**: Januar Zidan Etinendeng, Galen Alvian, Muhammad Alfarezel Arsano, Muhammad Afdhal Al Fairuz, Haikal Resqi Putra, Abee Maalik Salahudin
-- **Institusi**: SMKN 8 Jakarta
-- **Lisensi**: Proyek ini dilisensikan di bawah ketentuan lisensi internal SMKN 8 Jakarta.
+* **Abee Maalik Salahudin** - *Project Tester* 
+* **Galen Alvian** - *Lead Backend Engineer & API Architect* ([GitHub: @alviangalen](https://github.com/alviangalen))
+* **Haikal Rezqi Putra** - *UI/UX Designer* ([GitHub: @Kalllaja](https://github.com/Kalllaja))
+* **Januar Zidane Tinendeng** - *Lead Android & Mobile Developer* ([GitHub: @Papi0404](https://github.com/Papi0404))
+* **Muhammad Afdhal Al Fairuz** - *Logo Designer* ([GitHub: @MAFDHALALFAIRUZ](https://github.com/MAFDHALALFAIRUZ))
+* **Muhammad Alfarezel Arsano** - *UI/UX & Mobile Developer* ([GitHub: @ezelaliluu](https://github.com/ezelaliluu))
+
+* **SMKN 8 Jakarta** - *Mitra Implementasi & Pengguna Utama*
+
+---
+
+## Lisensi
+
+Proyek ini dilisensikan di bawah [ISC License](LICENSE).  
+Hak Cipta &copy; 2026 Tim E-Kantin SMKN 8 Jakarta.
