@@ -108,7 +108,7 @@ Eight-Canteen/
 ## Konfigurasi Environment (`.env`) & Backend
 
 Aplikasi Android ini berkomunikasi langsung dengan backend service yang dikembangkan di repository:
-👉 **[https://github.com/alviangalen/backend-kantin-mobile.git](https://github.com/alviangalen/backend-kantin-mobile.git)**
+ **[https://github.com/alviangalen/backend-kantin-mobile.git](https://github.com/alviangalen/backend-kantin-mobile.git)**
 
 Konfigurasi koneksi dibaca secara otomatis saat proses build melalui file `.env` di direktori utama:
 
