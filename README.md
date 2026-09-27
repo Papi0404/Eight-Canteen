@@ -46,11 +46,6 @@ Dengan Eight Canteen, siswa dapat memesan makanan/minuman tanpa perlu mengantre 
 - **Proses Pesanan Real-time**: Kelola alur pesanan dari konfirmasi, proses masak, hingga siap diambil.
 - **Kontrol Toko**: Buka/tutup stand kantin secara fleksibel.
 
-### 3. Administrator (Koperasi & OSIS)
-- **Dashboard Admin**: Ringkasan omset keseluruhan kantin, stand terlaris, dan volume transaksi harian.
-- **Manajemen Stand**: Pendaftaran dan verifikasi stand baru di kantin sekolah.
-- **Monitoring Transaksi**: Pantau kepatuhan harga dan alur kas kantin digital.
-
 ---
 
 ## Arsitektur & Teknologi
