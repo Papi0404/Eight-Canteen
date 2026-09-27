@@ -210,5 +210,4 @@ Jika Anda ingin langsung menghasilkan file `.apk` tanpa membuka antarmuka Androi
 
 ## Lisensi
 
-Proyek ini dilisensikan di bawah [ISC License](LICENSE).  
 Hak Cipta &copy; 2026 Tim E-Kantin SMKN 8 Jakarta.
