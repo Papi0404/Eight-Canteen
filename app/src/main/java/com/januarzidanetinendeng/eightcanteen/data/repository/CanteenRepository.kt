@@ -195,6 +195,14 @@ class CanteenRepository(
         api.confirmPickup(orderId)
     }
 
+    suspend fun updateOrderStatus(orderId: String, status: String): Result<BaseResponse<OrderResponse>> = safeApiCall {
+        api.updateOrderStatus(orderId, UpdateOrderStatusRequest(status = status))
+    }
+
+    suspend fun getSellerRevenue(): Result<BaseResponse<SellerRevenueResponse>> = safeApiCall {
+        api.getSellerRevenue()
+    }
+
     // 5. Admin
     suspend fun adminCreateStand(ownerName: String, standName: String, phoneNumber: String, counterSlot: String? = null, category: String? = null): Result<BaseResponse<StandResponse>> = safeApiCall {
         api.adminCreateStand(AdminCreateStandRequest(ownerName = ownerName, standName = standName, phoneNumber = phoneNumber, counterSlot = counterSlot, category = category))

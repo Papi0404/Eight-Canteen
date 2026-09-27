@@ -87,6 +87,7 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:${camerax_version}")
     implementation("androidx.camera:camera-view:${camerax_version}")
     implementation("com.google.guava:guava:31.1-android")
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
 
     // Networking
     implementation("com.squareup.retrofit2:retrofit:2.11.0")

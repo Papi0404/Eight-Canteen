@@ -99,8 +99,8 @@ fun MainAppNavigation(
     var studentClass by remember { mutableStateOf(SessionManager.getInstance(context).getStudentClass() ?: "") }
     
     // Seller Data
-    var sellerStandName by remember { mutableStateOf("Kebab Bang Ali") }
-    var sellerCounterSlot by remember { mutableStateOf("Stand 04") }
+    var sellerStandName by remember { mutableStateOf(SessionManager.getInstance(context).getStandName() ?: "") }
+    var sellerCounterSlot by remember { mutableStateOf(SessionManager.getInstance(context).getCounterSlot() ?: "") }
 
     // Stand Selection Data
     var selectedStandId by remember { mutableStateOf<String?>(null) }
@@ -114,8 +114,8 @@ fun MainAppNavigation(
         userPhoneNumber = ""
         studentName = ""
         studentClass = ""
-        sellerStandName = "Kebab Bang Ali"
-        sellerCounterSlot = "Stand 04"
+        sellerStandName = ""
+        sellerCounterSlot = ""
         currentUserRole = UserRole.STUDENT
         currentScreen = ScreenState.LOGIN
         Toast.makeText(context, "Berhasil keluar dari akun", Toast.LENGTH_SHORT).show()
@@ -162,8 +162,8 @@ fun MainAppNavigation(
             val cachedName = session.getUserName()
             val cachedRole = session.getUserRole()
             val cachedClass = session.getStudentClass() ?: ""
-            val cachedStand = session.getStandName() ?: "Kebab Bang Ali"
-            val cachedSlot = session.getCounterSlot() ?: "Stand 04"
+            val cachedStand = session.getStandName() ?: ""
+            val cachedSlot = session.getCounterSlot() ?: ""
 
             userPhoneNumber = cachedPhone
             studentName = cachedName
@@ -544,12 +544,12 @@ fun MainAppNavigation(
             SellerDashboardScreen(
                 standName = sellerStandName,
                 counterSlot = sellerCounterSlot,
-                todayIncome = 150000,
-                completedOrders = 18,
-                activeQueueCount = 12,
-                readyCount = 4,
-                cookingCount = 8,
-                averagePrepMinutes = 7,
+                todayIncome = 0,
+                completedOrders = 0,
+                activeQueueCount = 0,
+                readyCount = 0,
+                cookingCount = 0,
+                averagePrepMinutes = 0,
                 onStandUpdated = { newName, newSlot ->
                     sellerStandName = newName
                     sellerCounterSlot = newSlot
@@ -573,8 +573,8 @@ fun MainAppNavigation(
                         val repo = CanteenRepository()
                         repo.confirmPickup(orderId).onSuccess { res ->
                             Toast.makeText(context, "Pesanan #${res.data?.orderNumber ?: orderId} berhasil diambil!", Toast.LENGTH_LONG).show()
-                        }.onFailure {
-                            Toast.makeText(context, "Konfirmasi Pickup $orderId Selesai (Simulasi)", Toast.LENGTH_LONG).show()
+                        }.onFailure { err ->
+                            Toast.makeText(context, "Gagal konfirmasi pesanan: ${err.message ?: "Pesanan tidak valid"}", Toast.LENGTH_LONG).show()
                         }
                     }
                     currentScreen = ScreenState.SELLER_DASHBOARD

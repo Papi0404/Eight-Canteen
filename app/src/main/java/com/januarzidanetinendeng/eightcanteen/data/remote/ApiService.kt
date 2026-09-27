@@ -6,6 +6,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -49,8 +50,16 @@ interface ApiService {
     @GET("stands/me")
     suspend fun getMyStand(): BaseResponse<StandResponse>
 
+    @GET("stands/revenue")
+    suspend fun getSellerRevenue(): BaseResponse<SellerRevenueResponse>
+
     @PATCH("stands/me")
     suspend fun updateMyStand(
+        @Body request: UpdateStandRequest
+    ): BaseResponse<StandResponse>
+
+    @PUT("stands/me")
+    suspend fun updateMyStandPut(
         @Body request: UpdateStandRequest
     ): BaseResponse<StandResponse>
 
@@ -119,6 +128,12 @@ interface ApiService {
     @PATCH("orders/{orderId}/pickup")
     suspend fun confirmPickup(
         @Path("orderId") orderId: String
+    ): BaseResponse<OrderResponse>
+
+    @PATCH("orders/{orderId}/status")
+    suspend fun updateOrderStatus(
+        @Path("orderId") orderId: String,
+        @Body request: UpdateOrderStatusRequest
     ): BaseResponse<OrderResponse>
 
     // ==========================================
@@ -199,12 +214,49 @@ data class UserProfile(
     @SerializedName("className") val className: String? = null,
     @SerializedName("class_name") val class_name: String? = null,
     @SerializedName("stand") val stand: StandResponse? = null,
+    @SerializedName("todayIncome") val todayIncome: Int? = null,
+    @SerializedName("completedOrders") val completedOrders: Int? = null,
     @SerializedName("isNewUser") val isNewUser: Boolean? = null,
     @SerializedName("isProfileComplete") val isProfileComplete: Boolean? = null
 ) {
     val resolvedClass: String? get() = studentClass ?: className ?: class_name
     val resolvedName: String? get() = fullName ?: name
 }
+
+data class SellerRevenueResponse(
+    @SerializedName("standId") val standId: String? = null,
+    @SerializedName("standName") val standName: String? = null,
+    @SerializedName("todayIncome") val todayIncome: Int? = 0,
+    @SerializedName("grossIncome") val grossIncome: Int? = 0,
+    @SerializedName("completedOrders") val completedOrders: Int? = 0,
+    @SerializedName("activeQueueCount") val activeQueueCount: Int? = 0,
+    @SerializedName("readyCount") val readyCount: Int? = 0,
+    @SerializedName("cookingCount") val cookingCount: Int? = 0,
+    @SerializedName("averagePrepMinutes") val averagePrepMinutes: Int? = 7,
+    @SerializedName("dailyHistory") val dailyHistory: List<DailyRevenueItem>? = null,
+    @SerializedName("transactions") val transactions: List<SellerTransactionItem>? = null
+)
+
+data class DailyRevenueItem(
+    @SerializedName("date") val date: String,
+    @SerializedName("totalIncome") val totalIncome: Int = 0,
+    @SerializedName("orderCount") val orderCount: Int = 0
+)
+
+data class SellerTransactionItem(
+    @SerializedName("id") val id: String,
+    @SerializedName("orderNumber") val orderNumber: String,
+    @SerializedName("totalAmount") val totalAmount: Int = 0,
+    @SerializedName("paymentMethod") val paymentMethod: String? = null,
+    @SerializedName("studentName") val studentName: String? = null,
+    @SerializedName("studentClass") val studentClass: String? = null,
+    @SerializedName("createdAt") val createdAt: String? = null,
+    @SerializedName("itemCount") val itemCount: Int? = 1
+)
+
+data class UpdateOrderStatusRequest(
+    @SerializedName("status") val status: String
+)
 
 data class UpdateProfileRequest(
     @SerializedName("name") val name: String? = null,

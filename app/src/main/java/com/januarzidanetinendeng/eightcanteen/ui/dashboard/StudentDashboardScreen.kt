@@ -163,26 +163,8 @@ fun StudentDashboardScreen(
     var currentStudentClass by remember { mutableStateOf(studentClass) }
     var currentLoyaltyPoints by remember { mutableIntStateOf(loyaltyPoints) }
 
-    val defaultStands = remember {
-        listOf(
-            StandItem("bf7b8db5-ce1c-4692-9dd9-e2e05d4a64dc", "Kebab Bang Jago", "4.8", "Stand 01 • Buka", false, "🥙"),
-            StandItem("4376f549-c300-46fa-a6bc-00bf9c011709", "Jus Buah Bang Ijul", "4.8", "Stand 02 • Buka", false, "🍹"),
-            StandItem("5c4c639b-10b1-4af4-a55d-2e6bfc4913ac", "Kantin SMKN 8", "4.9", "Stand 03 • Buka", false, "🍲")
-        )
-    }
-
-    val defaultMenuItems = remember {
-        listOf(
-            MenuItem("8541903e-5518-4b3c-85e5-721513ae1c49", "Kebab Daging Spesial", "Kebab Bang Jago", 15000, 14, "10 mnt", "Favorit", Color(0xFFFEF3C7), "🥙", "bf7b8db5-ce1c-4692-9dd9-e2e05d4a64dc", "Makanan"),
-            MenuItem("5a1e4ab5-da9d-405a-9a4f-345a659c50e3", "Ketoprak Telur", "Kebab Bang Jago", 12000, 15, "15 mnt", null, null, "🍲", "bf7b8db5-ce1c-4692-9dd9-e2e05d4a64dc", "Makanan"),
-            MenuItem("6b05c4ca-d73b-48c1-913b-d7658b45feb5", "Es Teh Segar", "Kebab Bang Jago", 5000, 49, "Cepat", null, null, "🧋", "bf7b8db5-ce1c-4692-9dd9-e2e05d4a64dc", "Minuman"),
-            MenuItem("41bd2026-8588-4272-8427-bdf37fbed5cf", "Jus Jeruk", "Jus Buah Bang Ijul", 5000, 50, "5 mnt", null, null, "🍹", "4376f549-c300-46fa-a6bc-00bf9c011709", "Minuman"),
-            MenuItem("be92805b-bb6f-465f-a81f-32efcfa45229", "Jus Mangga", "Jus Buah Bang Ijul", 12000, 15, "8 mnt", null, null, "🥭", "4376f549-c300-46fa-a6bc-00bf9c011709", "Minuman")
-        )
-    }
-
-    var stands by remember { mutableStateOf(defaultStands) }
-    var menuItems by remember { mutableStateOf(defaultMenuItems) }
+    var stands by remember { mutableStateOf<List<StandItem>>(emptyList()) }
+    var menuItems by remember { mutableStateOf<List<MenuItem>>(emptyList()) }
     val repository = remember { CanteenRepository() }
 
     LaunchedEffect(Unit) {
@@ -213,55 +195,53 @@ fun StudentDashboardScreen(
 
         // 2. Fetch Stands
         repository.getStands().onSuccess { res ->
-            res.data?.takeIf { it.isNotEmpty() }?.let { apiStands ->
-                stands = apiStands.map { stand ->
-                    StandItem(
-                        id = stand.id,
-                        name = stand.name,
-                        rating = "",
-                        distanceOrTime = "${stand.counterSlot ?: "Stand"} • ${if (stand.isOpen) "Buka" else "Tutup"}",
-                        isBusy = false,
-                        foodEmoji = when {
-                            stand.name.contains("Kebab", true) -> "🥙"
-                            stand.name.contains("Ketoprak", true) -> "🍲"
-                            stand.name.contains("Ayam", true) -> "🍗"
-                            stand.name.contains("Jus", true) || stand.name.contains("Buah", true) -> "🍹"
-                            stand.name.contains("Kopi", true) || stand.name.contains("Barista", true) -> "🧋"
-                            else -> "🍱"
-                        }
-                    )
-                }
+            val apiStands = res.data ?: emptyList()
+            stands = apiStands.map { stand ->
+                StandItem(
+                    id = stand.id,
+                    name = stand.name,
+                    rating = "",
+                    distanceOrTime = "${stand.counterSlot ?: "Stand"} • ${if (stand.isOpen) "Buka" else "Tutup"}",
+                    isBusy = false,
+                    foodEmoji = when {
+                        stand.name.contains("Kebab", true) -> "🥙"
+                        stand.name.contains("Ketoprak", true) -> "🍲"
+                        stand.name.contains("Ayam", true) -> "🍗"
+                        stand.name.contains("Jus", true) || stand.name.contains("Buah", true) -> "🍹"
+                        stand.name.contains("Kopi", true) || stand.name.contains("Barista", true) -> "🧋"
+                        else -> "🍱"
+                    }
+                )
             }
         }
 
         // 3. Fetch Menus
         repository.getAllMenus().onSuccess { res ->
-            res.data?.takeIf { it.isNotEmpty() }?.let { apiMenus ->
-                menuItems = apiMenus.map { menu ->
-                    val resolvedCategory = classifyMenuCategory(menu.name, menu.stands?.category)
-                    MenuItem(
-                        id = menu.id,
-                        name = menu.name,
-                        standName = menu.stands?.name ?: "Stand Kantin",
-                        price = menu.price,
-                        stock = menu.stock,
-                        prepareTime = menu.prepareTime ?: "10 mnt",
-                        tag = if (menu.stock in 1..4) "Tersisa ${menu.stock}" else if (menu.stock > 10) "Tersedia" else null,
-                        tagColor = if (menu.stock in 1..4) Color(0xFFFEE2E2) else Color(0xFFDCFCE7),
-                        foodEmoji = when {
-                            menu.name.contains("Kebab", true) -> "🥙"
-                            menu.name.contains("Ketoprak", true) -> "🍲"
-                            menu.name.contains("Ayam", true) || menu.name.contains("Geprek", true) -> "🍗"
-                            menu.name.contains("Dimsum", true) -> "🥟"
-                            menu.name.contains("Kopi", true) -> "☕"
-                            menu.name.contains("Teh", true) -> "🧋"
-                            menu.name.contains("Jus", true) -> "🍹"
-                            else -> "🍛"
-                        },
-                        standId = menu.standId ?: menu.stands?.id,
-                        category = resolvedCategory
-                    )
-                }
+            val apiMenus = res.data ?: emptyList()
+            menuItems = apiMenus.map { menu ->
+                val resolvedCategory = classifyMenuCategory(menu.name, menu.stands?.category)
+                MenuItem(
+                    id = menu.id,
+                    name = menu.name,
+                    standName = menu.stands?.name ?: "Stand Kantin",
+                    price = menu.price,
+                    stock = menu.stock,
+                    prepareTime = menu.prepareTime ?: "10 mnt",
+                    tag = if (menu.stock in 1..4) "Tersisa ${menu.stock}" else if (menu.stock > 10) "Tersedia" else null,
+                    tagColor = if (menu.stock in 1..4) Color(0xFFFEE2E2) else Color(0xFFDCFCE7),
+                    foodEmoji = when {
+                        menu.name.contains("Kebab", true) -> "🥙"
+                        menu.name.contains("Ketoprak", true) -> "🍲"
+                        menu.name.contains("Ayam", true) || menu.name.contains("Geprek", true) -> "🍗"
+                        menu.name.contains("Dimsum", true) -> "🥟"
+                        menu.name.contains("Kopi", true) -> "☕"
+                        menu.name.contains("Teh", true) -> "🧋"
+                        menu.name.contains("Jus", true) -> "🍹"
+                        else -> "🍛"
+                    },
+                    standId = menu.standId ?: menu.stands?.id,
+                    category = resolvedCategory
+                )
             }
         }
     }

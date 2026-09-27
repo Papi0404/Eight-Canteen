@@ -30,6 +30,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -70,42 +71,38 @@ fun AllStandsScreen(
     val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
 
-    val defaultStands = remember {
-        listOf(
-            StandItem("bf7b8db5-ce1c-4692-9dd9-e2e05d4a64dc", "Kebab Bang Jago", "4.8", "Stand 01 • Buka", false, "🥙"),
-            StandItem("4376f549-c300-46fa-a6bc-00bf9c011709", "Jus Buah Bang Ijul", "4.8", "Stand 02 • Buka", false, "🍹"),
-            StandItem("5c4c639b-10b1-4af4-a55d-2e6bfc4913ac", "Kantin SMKN 8", "4.9", "Stand 03 • Buka", false, "🍲"),
-            StandItem("9f3a1234-abcd-5678-ef01-2345678901ab", "Ayam Geprek Bu Joko", "4.8", "Stand 04 • Buka", false, "🍗"),
-            StandItem("8e2b9876-dcba-4321-fe10-9876543210fe", "Dimsum & Siomay Corner", "4.7", "Stand 05 • Buka", false, "🥟"),
-            StandItem("7d1c5432-1234-5678-90ab-cdef12345678", "Kedai Kopi & Teh Siswa", "4.9", "Stand 06 • Buka", false, "🧋")
-        )
-    }
-
-    var stands by remember { mutableStateOf(defaultStands) }
+    var stands by remember { mutableStateOf<List<StandItem>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
     val repository = remember { CanteenRepository() }
 
     LaunchedEffect(Unit) {
+        isLoading = true
+        errorMessage = null
         repository.getStands().onSuccess { res ->
-            res.data?.takeIf { it.isNotEmpty() }?.let { apiStands ->
-                stands = apiStands.map { stand ->
-                    StandItem(
-                        id = stand.id,
-                        name = stand.name,
-                        rating = "",
-                        distanceOrTime = "${stand.counterSlot ?: "Stand"} • ${if (stand.isOpen) "Buka" else "Tutup"}",
-                        isBusy = false,
-                        foodEmoji = when {
-                            stand.name.contains("Kebab", true) -> "🥙"
-                            stand.name.contains("Ketoprak", true) -> "🍲"
-                            stand.name.contains("Ayam", true) -> "🍗"
-                            stand.name.contains("Jus", true) || stand.name.contains("Buah", true) -> "🍹"
-                            stand.name.contains("Kopi", true) || stand.name.contains("Teh", true) -> "🧋"
-                            stand.name.contains("Dimsum", true) -> "🥟"
-                            else -> "🍱"
-                        }
-                    )
-                }
+            isLoading = false
+            stands = (res.data ?: emptyList()).map { stand ->
+                StandItem(
+                    id = stand.id,
+                    name = stand.name,
+                    rating = "",
+                    distanceOrTime = "${stand.counterSlot ?: "Stand"} • ${if (stand.isOpen) "Buka" else "Tutup"}",
+                    isBusy = false,
+                    foodEmoji = when {
+                        stand.name.contains("Kebab", true) -> "🥙"
+                        stand.name.contains("Ketoprak", true) -> "🍲"
+                        stand.name.contains("Ayam", true) -> "🍗"
+                        stand.name.contains("Jus", true) || stand.name.contains("Buah", true) -> "🍹"
+                        stand.name.contains("Kopi", true) || stand.name.contains("Teh", true) -> "🧋"
+                        stand.name.contains("Dimsum", true) -> "🥟"
+                        else -> "🍱"
+                    }
+                )
             }
+        }.onFailure { err ->
+            isLoading = false
+            errorMessage = "Gagal memuat stand dari server: ${err.message ?: "Kesalahan jaringan"}"
+            stands = emptyList()
         }
     }
 
@@ -227,11 +224,51 @@ fun AllStandsScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Stands List
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = BluePrimary)
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text("Memuat daftar stand...", fontSize = 13.sp, color = TextSecondary)
+                    }
+                }
+            } else if (errorMessage != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("⚠️", fontSize = 36.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(errorMessage ?: "Terjadi kesalahan", color = Color(0xFFDC2626), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            } else if (filteredStands.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🏪", fontSize = 36.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Tidak ada stand yang ditemukan", color = TextSecondary, fontSize = 13.sp)
+                    }
+                }
+            } else {
+                // Stands List
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                 items(filteredStands, key = { it.id }) { stand ->
                     Card(
                         modifier = Modifier
@@ -319,6 +356,7 @@ fun AllStandsScreen(
                     Spacer(modifier = Modifier.height(24.dp))
                 }
             }
+        }
         }
     }
 }
