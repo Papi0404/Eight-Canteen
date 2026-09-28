@@ -243,23 +243,141 @@ class CanteenRepository(
     }
 
     // 5. Admin
-    suspend fun adminCreateStand(ownerName: String, standName: String, phoneNumber: String, counterSlot: String? = null, category: String? = null): Result<BaseResponse<StandResponse>> = safeApiCall {
-        api.adminCreateStand(AdminCreateStandRequest(ownerName = ownerName, standName = standName, phoneNumber = phoneNumber, counterSlot = counterSlot, category = category))
+    suspend fun adminCreateStand(
+        ownerName: String,
+        standName: String,
+        phoneNumber: String,
+        counterSlot: String? = null,
+        category: String? = null
+    ): Result<BaseResponse<AdminStandResponse>> = safeApiCall {
+        api.adminCreateStand(
+            AdminCreateStandRequest(
+                ownerName = ownerName,
+                standName = standName,
+                phoneNumber = phoneNumber,
+                counterSlot = counterSlot,
+                category = category
+            )
+        )
     }
 
-    suspend fun getAdminRevenue(startDate: String? = null, endDate: String? = null): Result<BaseResponse<AdminRevenueResponse>> = safeApiCall {
-        api.getAdminRevenue(startDate, endDate)
+    suspend fun adminGetStands(): Result<BaseResponse<List<AdminStandResponse>>> = safeApiCall {
+        api.adminGetStands()
+    }
+
+    suspend fun adminGetStandDetail(standId: String): Result<BaseResponse<AdminStandDetailResponse>> = safeApiCall {
+        api.adminGetStandDetail(standId)
+    }
+
+    suspend fun adminUpdateStand(
+        standId: String,
+        name: String? = null,
+        counterSlot: String? = null,
+        category: String? = null,
+        isOpen: Boolean? = null
+    ): Result<BaseResponse<AdminStandResponse>> = safeApiCall {
+        api.adminUpdateStand(
+            standId,
+            AdminUpdateStandRequest(name = name, counterSlot = counterSlot, category = category, isOpen = isOpen)
+        )
+    }
+
+    suspend fun adminDeleteStand(standId: String): Result<BaseResponse<Any>> = safeApiCall {
+        api.adminDeleteStand(standId)
+    }
+
+    suspend fun adminGetSellers(): Result<BaseResponse<List<AdminSellerResponse>>> = safeApiCall {
+        api.adminGetSellers()
+    }
+
+    suspend fun adminDeleteSeller(sellerId: String): Result<BaseResponse<Any>> = safeApiCall {
+        api.adminDeleteSeller(sellerId)
+    }
+
+    suspend fun getAdminRevenue(
+        startDate: String? = null,
+        endDate: String? = null,
+        period: String? = null
+    ): Result<BaseResponse<AdminRevenueResponse>> = safeApiCall {
+        api.getAdminRevenue(startDate, endDate, period)
     }
 
     suspend fun getAdminStandRevenue(standId: String): Result<BaseResponse<StandRevenueDetailResponse>> = safeApiCall {
         api.getAdminStandRevenue(standId)
     }
 
+    suspend fun adminGetStudents(
+        search: String? = null,
+        className: String? = null,
+        status: String? = null
+    ): Result<BaseResponse<List<AdminStudentResponse>>> = safeApiCall {
+        api.adminGetStudents(search, className, status)
+    }
+
+    suspend fun adminCreateStudent(
+        fullName: String,
+        phoneNumber: String,
+        nis: String? = null,
+        className: String? = null,
+        points: Int = 0
+    ): Result<BaseResponse<AdminStudentResponse>> = safeApiCall {
+        api.adminCreateStudent(
+            AdminCreateStudentRequest(
+                fullName = fullName,
+                phoneNumber = phoneNumber,
+                nis = nis,
+                className = className,
+                points = points
+            )
+        )
+    }
+
+    suspend fun adminGetStudentDetail(studentId: String): Result<BaseResponse<AdminStudentDetailResponse>> = safeApiCall {
+        api.adminGetStudentDetail(studentId)
+    }
+
+    suspend fun adminUpdateStudent(
+        studentId: String,
+        fullName: String? = null,
+        phoneNumber: String? = null,
+        nis: String? = null,
+        className: String? = null,
+        points: Int? = null,
+        violationCount: Int? = null
+    ): Result<BaseResponse<AdminStudentResponse>> = safeApiCall {
+        api.adminUpdateStudent(
+            studentId,
+            AdminUpdateStudentRequest(
+                fullName = fullName,
+                phoneNumber = phoneNumber,
+                nis = nis,
+                className = className,
+                points = points,
+                violationCount = violationCount
+            )
+        )
+    }
+
+    suspend fun adminToggleStudentStatus(
+        studentId: String,
+        isActive: Boolean
+    ): Result<BaseResponse<AdminStudentResponse>> = safeApiCall {
+        api.adminToggleStudentStatus(studentId, ToggleStudentStatusRequest(isActive = isActive))
+    }
+
+    suspend fun adminDeleteStudent(studentId: String): Result<BaseResponse<Any>> = safeApiCall {
+        api.adminDeleteStudent(studentId)
+    }
+
+    suspend fun adminGetClasses(): Result<BaseResponse<List<AdminClassResponse>>> = safeApiCall {
+        api.adminGetClasses()
+    }
+
     suspend fun getAdminViolations(): Result<BaseResponse<List<ViolationResponse>>> = safeApiCall {
         api.getAdminViolations()
     }
 
-    suspend fun addViolation(userId: String, points: Int = 5, note: String? = null): Result<BaseResponse<Any>> = safeApiCall {
+    suspend fun addViolation(userId: String, points: Int = 1, note: String? = null): Result<BaseResponse<Any>> = safeApiCall {
         api.addViolation(userId, AddViolationRequest(points = points, note = note))
     }
 }

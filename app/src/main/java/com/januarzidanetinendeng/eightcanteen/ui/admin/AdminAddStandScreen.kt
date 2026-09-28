@@ -949,8 +949,7 @@ fun AdminAddStandScreen(
                             Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                             onAddStandSuccess(standName, ownerName)
                         }.onFailure { e ->
-                            Toast.makeText(context, "Respon Server: ${e.message}", Toast.LENGTH_SHORT).show()
-                            onAddStandSuccess(standName, ownerName)
+                            Toast.makeText(context, "Gagal Mendaftarkan Stand: ${e.message}", Toast.LENGTH_LONG).show()
                         }
                     }
                 },

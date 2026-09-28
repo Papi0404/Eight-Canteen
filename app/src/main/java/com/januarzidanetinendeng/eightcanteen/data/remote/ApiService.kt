@@ -168,18 +168,83 @@ interface ApiService {
     @POST("admin/stands")
     suspend fun adminCreateStand(
         @Body request: AdminCreateStandRequest
-    ): BaseResponse<StandResponse>
+    ): BaseResponse<AdminStandResponse>
+
+    @GET("admin/stands")
+    suspend fun adminGetStands(): BaseResponse<List<AdminStandResponse>>
+
+    @GET("admin/stands/{standId}")
+    suspend fun adminGetStandDetail(
+        @Path("standId") standId: String
+    ): BaseResponse<AdminStandDetailResponse>
+
+    @PATCH("admin/stands/{standId}")
+    suspend fun adminUpdateStand(
+        @Path("standId") standId: String,
+        @Body request: AdminUpdateStandRequest
+    ): BaseResponse<AdminStandResponse>
+
+    @DELETE("admin/stands/{standId}")
+    suspend fun adminDeleteStand(
+        @Path("standId") standId: String
+    ): BaseResponse<Any>
+
+    @GET("admin/sellers")
+    suspend fun adminGetSellers(): BaseResponse<List<AdminSellerResponse>>
+
+    @DELETE("admin/sellers/{sellerId}")
+    suspend fun adminDeleteSeller(
+        @Path("sellerId") sellerId: String
+    ): BaseResponse<Any>
 
     @GET("admin/revenue")
     suspend fun getAdminRevenue(
         @Query("startDate") startDate: String? = null,
-        @Query("endDate") endDate: String? = null
+        @Query("endDate") endDate: String? = null,
+        @Query("period") period: String? = null
     ): BaseResponse<AdminRevenueResponse>
 
     @GET("admin/revenue/{standId}")
     suspend fun getAdminStandRevenue(
         @Path("standId") standId: String
     ): BaseResponse<StandRevenueDetailResponse>
+
+    @GET("admin/students")
+    suspend fun adminGetStudents(
+        @Query("search") search: String? = null,
+        @Query("className") className: String? = null,
+        @Query("status") status: String? = null
+    ): BaseResponse<List<AdminStudentResponse>>
+
+    @POST("admin/students")
+    suspend fun adminCreateStudent(
+        @Body request: AdminCreateStudentRequest
+    ): BaseResponse<AdminStudentResponse>
+
+    @GET("admin/students/{studentId}")
+    suspend fun adminGetStudentDetail(
+        @Path("studentId") studentId: String
+    ): BaseResponse<AdminStudentDetailResponse>
+
+    @PATCH("admin/students/{studentId}")
+    suspend fun adminUpdateStudent(
+        @Path("studentId") studentId: String,
+        @Body request: AdminUpdateStudentRequest
+    ): BaseResponse<AdminStudentResponse>
+
+    @PATCH("admin/students/{studentId}/status")
+    suspend fun adminToggleStudentStatus(
+        @Path("studentId") studentId: String,
+        @Body request: ToggleStudentStatusRequest
+    ): BaseResponse<AdminStudentResponse>
+
+    @DELETE("admin/students/{studentId}")
+    suspend fun adminDeleteStudent(
+        @Path("studentId") studentId: String
+    ): BaseResponse<Any>
+
+    @GET("admin/classes")
+    suspend fun adminGetClasses(): BaseResponse<List<AdminClassResponse>>
 
     @GET("admin/violations")
     suspend fun getAdminViolations(): BaseResponse<List<ViolationResponse>>
@@ -456,6 +521,70 @@ data class AdminCreateStandRequest(
     @SerializedName("category") val category: String? = null
 )
 
+data class AdminUpdateStandRequest(
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("standName") val standName: String? = null,
+    @SerializedName("counterSlot") val counterSlot: String? = null,
+    @SerializedName("category") val category: String? = null,
+    @SerializedName("isOpen") val isOpen: Boolean? = null
+)
+
+data class AdminStandResponse(
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("standName") val standName: String? = null,
+    @SerializedName("counterSlot") val counterSlot: String? = null,
+    @SerializedName("counterNumber") val counterNumber: String? = null,
+    @SerializedName("standNumber") val standNumber: String? = null,
+    @SerializedName("category") val category: String? = null,
+    @SerializedName("isOpen") val isOpen: Boolean? = true,
+    @SerializedName("rating") val rating: Float? = 4.8f,
+    @SerializedName("ownerId") val ownerId: String? = null,
+    @SerializedName("ownerName") val ownerName: String? = null,
+    @SerializedName("ownerPhone") val ownerPhone: String? = null,
+    @SerializedName("ownerIsActive") val ownerIsActive: Boolean? = true,
+    @SerializedName("menuCount") val menuCount: Int? = 0,
+    @SerializedName("todayRevenue") val todayRevenue: Long? = 0,
+    @SerializedName("createdAt") val createdAt: String? = null
+) {
+    val displayName: String get() = name ?: standName ?: "Stand Kantin"
+    val displaySlot: String get() = counterSlot ?: standNumber ?: counterNumber ?: "Stand 01"
+}
+
+data class AdminStandDetailResponse(
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("standName") val standName: String? = null,
+    @SerializedName("counterSlot") val counterSlot: String? = null,
+    @SerializedName("standNumber") val standNumber: String? = null,
+    @SerializedName("category") val category: String? = null,
+    @SerializedName("isOpen") val isOpen: Boolean? = true,
+    @SerializedName("ownerName") val ownerName: String? = null,
+    @SerializedName("ownerPhone") val ownerPhone: String? = null,
+    @SerializedName("menus") val menus: List<MenuResponse>? = null
+)
+
+data class AdminSellerResponse(
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("fullName") val fullName: String? = null,
+    @SerializedName("phoneNumber") val phoneNumber: String? = null,
+    @SerializedName("role") val role: String? = "SELLER",
+    @SerializedName("isActive") val isActive: Boolean? = true,
+    @SerializedName("createdAt") val createdAt: String? = null,
+    @SerializedName("stand") val stand: AdminSellerStandInfo? = null
+) {
+    val displayName: String get() = fullName ?: name ?: "Penjual"
+}
+
+data class AdminSellerStandInfo(
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("standNumber") val standNumber: String? = null,
+    @SerializedName("category") val category: String? = null,
+    @SerializedName("isOpen") val isOpen: Boolean? = null
+)
+
 data class AdminRevenueResponse(
     @SerializedName("grossIncome") val grossIncome: Long? = 0,
     @SerializedName("netIncome") val netIncome: Long? = 0,
@@ -467,16 +596,91 @@ data class AdminRevenueResponse(
 data class StandRevenueItem(
     @SerializedName("standId") val standId: String,
     @SerializedName("standName") val standName: String,
-    @SerializedName("grossIncome") val grossIncome: Long,
-    @SerializedName("progress") val progress: Float? = 0.5f
+    @SerializedName("ownerName") val ownerName: String? = null,
+    @SerializedName("counterSlot") val counterSlot: String? = null,
+    @SerializedName("grossIncome") val grossIncome: Long = 0,
+    @SerializedName("totalOrders") val totalOrders: Int? = 0,
+    @SerializedName("progress") val progress: Float? = 0f
 )
 
 data class StandRevenueDetailResponse(
     @SerializedName("standId") val standId: String,
     @SerializedName("standName") val standName: String? = null,
+    @SerializedName("ownerName") val ownerName: String? = null,
+    @SerializedName("ownerPhone") val ownerPhone: String? = null,
+    @SerializedName("accountNumber") val accountNumber: String? = null,
     @SerializedName("qrisBalance") val qrisBalance: Long? = 0,
+    @SerializedName("cashBalance") val cashBalance: Long? = 0,
     @SerializedName("readyToPayout") val readyToPayout: Long? = 0,
-    @SerializedName("accountNumber") val accountNumber: String? = null
+    @SerializedName("grossIncome") val grossIncome: Long? = 0,
+    @SerializedName("totalOrders") val totalOrders: Int? = 0
+)
+
+data class AdminStudentResponse(
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("fullName") val fullName: String? = null,
+    @SerializedName("phoneNumber") val phoneNumber: String? = null,
+    @SerializedName("role") val role: String? = "STUDENT",
+    @SerializedName("nis") val nis: String? = null,
+    @SerializedName("className") val className: String? = null,
+    @SerializedName("studentClass") val studentClass: String? = null,
+    @SerializedName("points") val points: Int? = 0,
+    @SerializedName("violationCount") val violationCount: Int? = 0,
+    @SerializedName("isActive") val isActive: Boolean? = true,
+    @SerializedName("createdAt") val createdAt: String? = null
+) {
+    val displayName: String get() = fullName ?: name ?: "Siswa"
+    val displayClass: String get() = className ?: studentClass ?: "-"
+}
+
+data class AdminStudentDetailResponse(
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("fullName") val fullName: String? = null,
+    @SerializedName("phoneNumber") val phoneNumber: String? = null,
+    @SerializedName("nis") val nis: String? = null,
+    @SerializedName("className") val className: String? = null,
+    @SerializedName("studentClass") val studentClass: String? = null,
+    @SerializedName("points") val points: Int? = 0,
+    @SerializedName("violationCount") val violationCount: Int? = 0,
+    @SerializedName("isActive") val isActive: Boolean? = true,
+    @SerializedName("recentOrders") val recentOrders: List<AdminStudentOrderHistoryItem>? = null
+)
+
+data class AdminStudentOrderHistoryItem(
+    @SerializedName("id") val id: String,
+    @SerializedName("order_number") val orderNumber: String? = null,
+    @SerializedName("total_amount") val totalAmount: Long? = 0,
+    @SerializedName("payment_method") val paymentMethod: String? = null,
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("created_at") val createdAt: String? = null
+)
+
+data class AdminCreateStudentRequest(
+    @SerializedName("fullName") val fullName: String,
+    @SerializedName("phoneNumber") val phoneNumber: String,
+    @SerializedName("nis") val nis: String? = null,
+    @SerializedName("className") val className: String? = null,
+    @SerializedName("points") val points: Int? = 0
+)
+
+data class AdminUpdateStudentRequest(
+    @SerializedName("fullName") val fullName: String? = null,
+    @SerializedName("phoneNumber") val phoneNumber: String? = null,
+    @SerializedName("nis") val nis: String? = null,
+    @SerializedName("className") val className: String? = null,
+    @SerializedName("points") val points: Int? = null,
+    @SerializedName("violationCount") val violationCount: Int? = null
+)
+
+data class ToggleStudentStatusRequest(
+    @SerializedName("isActive") val isActive: Boolean
+)
+
+data class AdminClassResponse(
+    @SerializedName("className") val className: String,
+    @SerializedName("studentCount") val studentCount: Int = 0
 )
 
 data class ViolationResponse(
@@ -492,6 +696,6 @@ data class ViolationResponse(
 )
 
 data class AddViolationRequest(
-    @SerializedName("points") val points: Int = 5,
+    @SerializedName("points") val points: Int = 1,
     @SerializedName("note") val note: String? = null
 )
