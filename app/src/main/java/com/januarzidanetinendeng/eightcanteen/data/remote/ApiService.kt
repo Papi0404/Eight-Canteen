@@ -1,12 +1,15 @@
 package com.januarzidanetinendeng.eightcanteen.data.remote
 
 import com.google.gson.annotations.SerializedName
+import okhttp3.MultipartBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -80,9 +83,27 @@ interface ApiService {
     @GET("menus/me")
     suspend fun getMyMenus(): BaseResponse<List<MenuResponse>>
 
+    @Multipart
+    @POST("menus/upload-image")
+    suspend fun uploadMenuImage(
+        @Part image: MultipartBody.Part
+    ): BaseResponse<UploadImageResponse>
+
     @POST("menus")
     suspend fun createMenu(
         @Body request: CreateMenuRequest
+    ): BaseResponse<MenuResponse>
+
+    @Multipart
+    @POST("menus/{menuId}/image")
+    suspend fun updateMenuImage(
+        @Path("menuId") menuId: String,
+        @Part image: MultipartBody.Part
+    ): BaseResponse<MenuResponse>
+
+    @DELETE("menus/{menuId}/image")
+    suspend fun deleteMenuImage(
+        @Path("menuId") menuId: String
     ): BaseResponse<MenuResponse>
 
     @PATCH("menus/{menuId}")
@@ -134,6 +155,11 @@ interface ApiService {
     suspend fun updateOrderStatus(
         @Path("orderId") orderId: String,
         @Body request: UpdateOrderStatusRequest
+    ): BaseResponse<OrderResponse>
+
+    @PATCH("orders/{orderId}/cancel")
+    suspend fun cancelOrder(
+        @Path("orderId") orderId: String
     ): BaseResponse<OrderResponse>
 
     // ==========================================
@@ -294,11 +320,21 @@ data class MenuResponse(
     @SerializedName("price") val price: Int,
     @SerializedName("stock") val stock: Int,
     @SerializedName("image_url") val imageUrl: String? = null,
-    @SerializedName("is_available") val isAvailable: Boolean = true,
+    @SerializedName("is_available") private val _is_available: Boolean? = null,
+    @SerializedName("isAvailable") private val _isAvailable: Boolean? = null,
     @SerializedName("prepareTime") val prepareTime: String? = "10 mnt",
     @SerializedName("stands") val stands: StandResponse? = null
 ) {
     val standId: String? get() = _stand_id ?: _standId ?: stands?.id
+    val isAvailable: Boolean get() = _isAvailable ?: _is_available ?: (stock > 0)
+}
+
+data class UploadImageResponse(
+    @SerializedName("imageUrl") val imageUrl: String? = null,
+    @SerializedName("image_url") val image_url: String? = null,
+    @SerializedName("fileName") val fileName: String? = null
+) {
+    val resolvedImageUrl: String? get() = imageUrl ?: image_url
 }
 
 data class CreateMenuRequest(
@@ -306,7 +342,8 @@ data class CreateMenuRequest(
     @SerializedName("name") val name: String,
     @SerializedName("price") val price: Int,
     @SerializedName("stock") val stock: Int,
-    @SerializedName("image") val image: String? = null
+    @SerializedName("image") val image: String? = null,
+    @SerializedName("imageUrl") val imageUrl: String? = null
 )
 
 data class UpdateStandRequest(
@@ -322,7 +359,10 @@ data class UpdateMenuRequest(
     @SerializedName("name") val name: String? = null,
     @SerializedName("price") val price: Int? = null,
     @SerializedName("stock") val stock: Int? = null,
-    @SerializedName("isAvailable") val isAvailable: Boolean? = null
+    @SerializedName("isAvailable") val isAvailable: Boolean? = null,
+    @SerializedName("is_available") val is_available: Boolean? = null,
+    @SerializedName("imageUrl") val imageUrl: String? = null,
+    @SerializedName("image") val image: String? = null
 )
 
 data class UpdateStockRequest(
@@ -335,12 +375,14 @@ data class CreateOrderRequest(
     @SerializedName("items") val items: List<OrderItemRequest>,
     @SerializedName("paymentMethod") val paymentMethod: String, // "QRIS" or "TUNAI"
     @SerializedName("usePoints") val usePoints: Boolean = false,
-    @SerializedName("note") val note: String? = null
+    @SerializedName("note") val note: String? = null,
+    @SerializedName("notes") val notes: String? = null
 )
 
 data class OrderItemRequest(
     @SerializedName("menuId") val menuId: String,
-    @SerializedName("quantity") val quantity: Int
+    @SerializedName("quantity") val quantity: Int,
+    @SerializedName("note") val note: String? = null
 )
 
 data class OrderResponse(
@@ -354,6 +396,8 @@ data class OrderResponse(
     @SerializedName("student_id") private val _student_id: String? = null,
     @SerializedName("studentName") val studentName: String? = null,
     @SerializedName("studentClass") val studentClass: String? = null,
+    @SerializedName("note") private val _note: String? = null,
+    @SerializedName("notes") private val _notes: String? = null,
     @SerializedName("items") val items: List<OrderItemDetail>? = null,
     @SerializedName("order_items") private val _order_items: List<OrderItemDetail>? = null,
     @SerializedName("orderItems") private val _orderItems: List<OrderItemDetail>? = null,
@@ -368,12 +412,14 @@ data class OrderResponse(
     @SerializedName("qrCode") private val _qrCode: String? = null,
     @SerializedName("barcode") private val _barcode: String? = null,
     @SerializedName("pickupTime") val pickupTime: String? = null,
+    @SerializedName("orders") val multiOrders: List<OrderResponse>? = null,
     @SerializedName("createdAt") private val _createdAt: String? = null,
     @SerializedName("created_at") private val _created_at: String? = null
 ) {
     val orderNumber: String get() = _orderNumber ?: _order_number ?: id.take(8).uppercase()
     val standId: String? get() = _standId ?: _stand_id ?: stands?.id
     val userId: String? get() = _userId ?: _student_id
+    val note: String? get() = _note ?: _notes
     val totalAmount: Int get() = _totalAmount ?: _total_amount ?: 0
     val paymentMethod: String? get() = _paymentMethod ?: _payment_method
     val paymentStatus: String get() = _paymentStatus ?: _payment_status ?: "PENDING"
@@ -381,6 +427,7 @@ data class OrderResponse(
     val barcode: String? get() = _barcode ?: _order_number ?: _orderNumber
     val createdAt: String? get() = _createdAt ?: _created_at
     val orderItems: List<OrderItemDetail> get() = items ?: _order_items ?: _orderItems ?: emptyList()
+    val allOrders: List<OrderResponse> get() = multiOrders?.ifEmpty { null } ?: listOf(this)
 }
 
 data class OrderItemDetail(
@@ -390,11 +437,14 @@ data class OrderItemDetail(
     @SerializedName("menus") val menus: MenuResponse? = null,
     @SerializedName("price") private val _price: Int? = null,
     @SerializedName("price_at_time") private val _price_at_time: Int? = null,
-    @SerializedName("quantity") val quantity: Int = 1
+    @SerializedName("quantity") val quantity: Int = 1,
+    @SerializedName("note") private val _note: String? = null,
+    @SerializedName("notes") private val _notes: String? = null
 ) {
     val menuId: String? get() = _menuId ?: _menu_id ?: menus?.id
     val name: String get() = menuName ?: menus?.name ?: "Menu Makanan"
     val price: Int get() = _price ?: _price_at_time ?: menus?.price ?: 0
+    val note: String? get() = _note ?: _notes
 }
 
 // Admin Models

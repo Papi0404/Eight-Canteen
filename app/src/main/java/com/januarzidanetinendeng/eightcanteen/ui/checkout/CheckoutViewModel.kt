@@ -69,6 +69,19 @@ class CartViewModel : ViewModel() {
         updateQuantity(itemId, currentQty + delta)
     }
 
+    fun removeItem(itemId: String) {
+        updateQuantity(itemId, 0)
+    }
+
+    fun updateItemNote(itemId: String, note: String) {
+        _uiState.update { currentState ->
+            val updatedList = currentState.cartItems.map { item ->
+                if (item.id == itemId) item.copy(note = note.trim()) else item
+            }
+            currentState.copy(cartItems = updatedList)
+        }
+    }
+
     fun setPaymentMethod(method: PaymentMethod) {
         _uiState.update { currentState ->
             currentState.copy(selectedPaymentMethod = method)

@@ -50,6 +50,7 @@ fun StudentOrderHistoryScreen(
     var orders by remember { mutableStateOf<List<OrderResponse>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var selectedFilter by remember { mutableStateOf("Semua") }
+    var orderToCancel by remember { mutableStateOf<OrderResponse?>(null) }
 
     fun fetchOrders() {
         isLoading = true
@@ -227,7 +228,8 @@ fun StudentOrderHistoryScreen(
                 items(filteredOrders) { order ->
                     StudentOrderCard(
                         order = order,
-                        onViewDetail = { onOrderClick(order.id) }
+                        onViewDetail = { onOrderClick(order.id) },
+                        onCancelClick = { orderToCancel = order }
                     )
                 }
                 item {
@@ -236,12 +238,63 @@ fun StudentOrderHistoryScreen(
             }
         }
     }
+
+    // Dialog Konfirmasi Pembatalan Pesanan
+    if (orderToCancel != null) {
+        val targetOrder = orderToCancel!!
+        AlertDialog(
+            onDismissRequest = { orderToCancel = null },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = Color.White,
+            title = {
+                Text(
+                    text = "Batalkan Pesanan #${targetOrder.orderNumber}?",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "Apakah Anda yakin ingin membatalkan pesanan ini? Stok menu akan dikembalikan ke stand dan poin yang digunakan akan dikembalikan ke akun Anda.",
+                    fontSize = 13.sp,
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val idToCancel = targetOrder.id
+                        orderToCancel = null
+                        coroutineScope.launch {
+                            repository.cancelOrder(idToCancel).onSuccess {
+                                Toast.makeText(context, "Pesanan #${targetOrder.orderNumber} berhasil dibatalkan!", Toast.LENGTH_SHORT).show()
+                                fetchOrders()
+                            }.onFailure { err ->
+                                Toast.makeText(context, "Gagal membatalkan pesanan: ${err.message}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Ya, Batalkan", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { orderToCancel = null }) {
+                    Text("Kembali", fontSize = 12.sp, color = TextSecondary)
+                }
+            }
+        )
+    }
 }
 
 @Composable
 fun StudentOrderCard(
     order: OrderResponse,
-    onViewDetail: () -> Unit
+    onViewDetail: () -> Unit,
+    onCancelClick: () -> Unit = {}
 ) {
     val standName = order.stands?.name ?: order.standName ?: "Stand Kantin"
     val isCash = order.paymentMethod?.contains("TUNAI", ignoreCase = true) == true ||
@@ -338,20 +391,55 @@ fun StudentOrderCard(
             if (items.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     items.forEach { item ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "${item.quantity}x ${item.name}",
-                                fontSize = 12.sp,
-                                color = TextPrimary
-                            )
-                            if (item.price > 0) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text(
-                                    text = "Rp ${formatRupiah((item.price * item.quantity).toDouble())}",
+                                    text = "${item.quantity}x ${item.name}",
                                     fontSize = 12.sp,
-                                    color = TextSecondary
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TextPrimary
+                                )
+                                if (item.price > 0) {
+                                    Text(
+                                        text = "Rp ${formatRupiah((item.price * item.quantity).toDouble())}",
+                                        fontSize = 12.sp,
+                                        color = TextSecondary
+                                    )
+                                }
+                            }
+                            if (!item.note.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "📝 Catatan: ${item.note}",
+                                    fontSize = 10.5.sp,
+                                    color = Color(0xFFB45309),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    if (!order.note.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0xFFFEF3C7))
+                                .border(0.8.dp, Color(0xFFFDE68A), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.Top) {
+                                Text(text = "📌 ", fontSize = 11.sp)
+                                Text(
+                                    text = "Catatan: ${order.note}",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF92400E)
                                 )
                             }
                         }
@@ -388,28 +476,55 @@ fun StudentOrderCard(
                     )
                 }
 
-                Button(
-                    onClick = onViewDetail,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isCompleted) Color(0xFFF1F5F9) else BlueLightBg,
-                        contentColor = BluePrimary
-                    ),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    modifier = Modifier.height(34.dp)
+                val canCancel = order.status != "COOKING" && order.status != "COMPLETED" && order.status != "CANCELLED" && order.status != "READY"
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.QrCode,
-                            contentDescription = "Barcode",
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Lihat Barcode",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                    if (canCancel) {
+                        OutlinedButton(
+                            onClick = onCancelClick,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color(0xFFDC2626)
+                            ),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Text(
+                                text = "Batalkan",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFDC2626)
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = onViewDetail,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isCompleted) Color(0xFFF1F5F9) else BlueLightBg,
+                            contentColor = BluePrimary
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.height(34.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.QrCode,
+                                contentDescription = "Barcode",
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Lihat Barcode",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }

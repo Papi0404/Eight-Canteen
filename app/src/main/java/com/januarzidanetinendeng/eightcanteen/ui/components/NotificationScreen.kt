@@ -45,12 +45,7 @@ data class NotificationItem(
 fun NotificationScreen(
     onBackClick: () -> Unit = {}
 ) {
-    val notifications = listOf(
-        NotificationItem("1", "Pesanan Siap Diambil!", "Kebab Beef Jumbo (Stand 04) sudah siap. Segera ambil pesananmu sebelum istirahat selesai.", "2 mnt lalu", false),
-        NotificationItem("2", "Voucher Baru Ditambahkan", "Voucher Makan Siang Gratis (20 Poin) berhasil ditukarkan dan masuk ke menu Voucher Saya.", "10 mnt lalu", false),
-        NotificationItem("3", "Pesanan Diproses", "Pesanan Kebab Beef Jumbo sedang disiapkan oleh penjual.", "15 mnt lalu", true),
-        NotificationItem("4", "Bonus Poin Pendaftaran", "Selamat datang! Kamu mendapatkan +5 Loyalty Poin dari Koperasi SMKN 8.", "2 hari lalu", true)
-    )
+    val notifications = emptyList<NotificationItem>()
 
     Scaffold(
         containerColor = ScreenBg,
@@ -71,62 +66,103 @@ fun NotificationScreen(
             }
         }
     ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            items(notifications) { notif ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(if (notif.isRead) Color.Transparent else BlueLightBg.copy(alpha = 0.5f))
-                        .clickable { }
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
+        if (notifications.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(72.dp)
                             .clip(CircleShape)
-                            .background(if (notif.isRead) BorderColor else BluePrimary),
+                            .background(Color(0xFFEFF6FF)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notif",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            contentDescription = null,
+                            tint = BluePrimary,
+                            modifier = Modifier.size(36.dp)
                         )
                     }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(
-                                text = notif.title,
-                                fontSize = 14.sp,
-                                fontWeight = if (notif.isRead) FontWeight.SemiBold else FontWeight.Bold,
-                                color = TextPrimary
-                            )
-                            Text(
-                                text = notif.time,
-                                fontSize = 11.sp,
-                                color = if (notif.isRead) TextMuted else BluePrimary,
-                                fontWeight = if (notif.isRead) FontWeight.Normal else FontWeight.Bold
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Belum Ada Notifikasi",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Pemberitahuan mengenai status pesanan kantin akan muncul di sini.",
+                        fontSize = 12.sp,
+                        color = TextSecondary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 32.dp)
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                items(notifications) { notif ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(if (notif.isRead) Color.Transparent else BlueLightBg.copy(alpha = 0.5f))
+                            .clickable { }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(if (notif.isRead) BorderColor else BluePrimary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = "Notif",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = notif.message,
-                            fontSize = 12.sp,
-                            color = TextSecondary,
-                            lineHeight = 16.sp
-                        )
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(
+                                    text = notif.title,
+                                    fontSize = 14.sp,
+                                    fontWeight = if (notif.isRead) FontWeight.SemiBold else FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                                Text(
+                                    text = notif.time,
+                                    fontSize = 11.sp,
+                                    color = if (notif.isRead) TextMuted else BluePrimary,
+                                    fontWeight = if (notif.isRead) FontWeight.Normal else FontWeight.Bold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = notif.message,
+                                fontSize = 12.sp,
+                                color = TextSecondary,
+                                lineHeight = 16.sp
+                            )
+                        }
                     }
+                    HorizontalDivider(color = BorderColor)
                 }
-                HorizontalDivider(color = BorderColor)
             }
         }
     }

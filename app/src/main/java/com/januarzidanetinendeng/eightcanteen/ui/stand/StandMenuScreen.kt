@@ -60,10 +60,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.januarzidanetinendeng.eightcanteen.data.repository.CanteenRepository
 import com.januarzidanetinendeng.eightcanteen.ui.checkout.CartItem
 import com.januarzidanetinendeng.eightcanteen.ui.checkout.CartViewModel
@@ -110,49 +113,8 @@ fun StandMenuScreen(
         }
     }
 
-    // Default Fallback Menus jika API belum memiliki data untuk stand tertentu
-    val fallbackMenus = remember(standName, standId) {
-        when {
-            standName.contains("Kebab", true) -> listOf(
-                MenuItem("m-k1", "Kebab Daging Spesial", standName, 15000, 14, "10 mnt", "Favorit", Color(0xFFFEF3C7), "🥙", standId, "Makanan"),
-                MenuItem("m-k2", "Ketoprak Telur", standName, 12000, 15, "15 mnt", null, null, "🍲", standId, "Makanan"),
-                MenuItem("m-k3", "Roti Maryam Coklat Keju", standName, 10000, 20, "7 mnt", null, null, "🫓", standId, "Makanan"),
-                MenuItem("m-k4", "Es Teh Segar Manis", standName, 5000, 49, "Cepat", null, null, "🧋", standId, "Minuman")
-            )
-            standName.contains("Jus", true) || standName.contains("Buah", true) -> listOf(
-                MenuItem("m-j1", "Jus Jeruk Peras Segar", standName, 5000, 50, "5 mnt", "Segar", Color(0xFFDCFCE7), "🍹", standId, "Minuman"),
-                MenuItem("m-j2", "Jus Mangga Manis", standName, 12000, 15, "8 mnt", "Favorit", Color(0xFFFEF3C7), "🥭", standId, "Minuman"),
-                MenuItem("m-j3", "Jus Alpukat Kocok", standName, 14000, 12, "8 mnt", null, null, "🥑", standId, "Minuman"),
-                MenuItem("m-j4", "Es Buah Spesial Campur", standName, 10000, 25, "5 mnt", null, null, "🍧", standId, "Minuman")
-            )
-            standName.contains("Ayam", true) || standName.contains("Geprek", true) -> listOf(
-                MenuItem("m-a1", "Paket Nasi Ayam Geprek Level 1-5", standName, 16000, 30, "12 mnt", "Best Seller", Color(0xFFFEE2E2), "🍗", standId, "Makanan"),
-                MenuItem("m-a2", "Ayam Crispy Sambal Matah", standName, 17000, 20, "12 mnt", null, null, "🍗", standId, "Makanan"),
-                MenuItem("m-a3", "Tahu & Tempe Crispy", standName, 5000, 40, "5 mnt", null, null, "🍘", standId, "Makanan"),
-                MenuItem("m-a4", "Es Teh Manis Jumbo", standName, 4000, 60, "3 mnt", null, null, "🧋", standId, "Minuman")
-            )
-            standName.contains("Dimsum", true) || standName.contains("Siomay", true) -> listOf(
-                MenuItem("m-d1", "Dimsum Ayam Udang (4 Pcs)", standName, 15000, 22, "8 mnt", "Favorit", Color(0xFFFEF3C7), "🥟", standId, "Makanan"),
-                MenuItem("m-d2", "Siomay Bandung Bumbu Kacang", standName, 14000, 18, "7 mnt", null, null, "🥟", standId, "Makanan"),
-                MenuItem("m-d3", "Pangsit Goreng Mayones", standName, 10000, 25, "5 mnt", null, null, "🥟", standId, "Makanan"),
-                MenuItem("m-d4", "Es Lemon Tea Dingin", standName, 6000, 35, "3 mnt", null, null, "🍋", standId, "Minuman")
-            )
-            standName.contains("Kopi", true) || standName.contains("Teh", true) -> listOf(
-                MenuItem("m-c1", "Kopi Susu Gula Aren", standName, 10000, 40, "5 mnt", "Favorit", Color(0xFFFEF3C7), "🧋", standId, "Minuman"),
-                MenuItem("m-c2", "Matcha Green Tea Latte", standName, 12000, 25, "5 mnt", null, null, "🍵", standId, "Minuman"),
-                MenuItem("m-c3", "Es Coklat Klasik", standName, 10000, 30, "5 mnt", null, null, "🍫", standId, "Minuman"),
-                MenuItem("m-c4", "Toast Roti Bakar Coklat Keju", standName, 10000, 20, "10 mnt", null, null, "🍞", standId, "Makanan")
-            )
-            else -> listOf(
-                MenuItem("m-s1", "Nasi Goreng Spesial SMKN 8", standName, 15000, 25, "10 mnt", "Favorit", Color(0xFFFEF3C7), "🍛", standId, "Makanan"),
-                MenuItem("m-s2", "Mie Ayam Bakso Komplit", standName, 14000, 20, "10 mnt", null, null, "🍜", standId, "Makanan"),
-                MenuItem("m-s3", "Soto Ayam Lamongan", standName, 15000, 15, "12 mnt", null, null, "🍲", standId, "Makanan"),
-                MenuItem("m-s4", "Es Jeruk Manis Segar", standName, 5000, 50, "5 mnt", null, null, "🍹", standId, "Minuman")
-            )
-        }
-    }
-
-    var menuList by remember { mutableStateOf<List<MenuItem>>(fallbackMenus) }
+    var menuList by remember { mutableStateOf<List<MenuItem>>(emptyList()) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     fun classifyCategory(name: String, standCategory: String?): String {
         val n = name.lowercase()
@@ -165,6 +127,7 @@ fun StandMenuScreen(
 
     fun loadMenus() {
         isLoading = true
+        errorMessage = null
         coroutineScope.launch {
             // 1. Coba ambil berdasarkan standId
             val result = if (standId.isNotBlank()) {
@@ -173,12 +136,12 @@ fun StandMenuScreen(
                 repository.getAllMenus()
             }
 
-            isLoading = false
             result.onSuccess { res ->
                 val apiMenus = res.data ?: emptyList()
                 if (apiMenus.isNotEmpty()) {
                     menuList = apiMenus.map { menu ->
                         val cat = classifyCategory(menu.name, menu.stands?.category)
+                        val isAvail = menu.isAvailable && menu.stock > 0
                         MenuItem(
                             id = menu.id,
                             name = menu.name,
@@ -186,12 +149,21 @@ fun StandMenuScreen(
                             price = menu.price,
                             stock = menu.stock,
                             prepareTime = menu.prepareTime ?: "10 mnt",
-                            tag = if (menu.stock > 30) "Tersedia" else null,
-                            tagColor = if (menu.stock > 30) Color(0xFFDCFCE7) else null,
+                            tag = when {
+                                !menu.isAvailable || menu.stock <= 0 -> "Tidak Tersedia"
+                                menu.stock in 1..4 -> "Tersisa ${menu.stock}"
+                                menu.stock > 10 -> "Tersedia"
+                                else -> null
+                            },
+                            tagColor = when {
+                                !menu.isAvailable || menu.stock <= 0 -> Color(0xFFFEE2E2)
+                                menu.stock in 1..4 -> Color(0xFFFEF3C7)
+                                else -> Color(0xFFDCFCE7)
+                            },
                             foodEmoji = when {
                                 menu.name.contains("Kebab", true) -> "🥙"
                                 menu.name.contains("Ketoprak", true) -> "🍲"
-                                menu.name.contains("Ayam", true) -> "🍗"
+                                menu.name.contains("Ayam", true) || menu.name.contains("Geprek", true) -> "🍗"
                                 menu.name.contains("Jus", true) || menu.name.contains("Buah", true) -> "🍹"
                                 menu.name.contains("Kopi", true) || menu.name.contains("Teh", true) -> "🧋"
                                 menu.name.contains("Dimsum", true) -> "🥟"
@@ -200,12 +172,16 @@ fun StandMenuScreen(
                                 else -> "🍱"
                             },
                             standId = menu.standId ?: standId,
-                            category = cat
+                            category = cat,
+                            isAvailable = isAvail,
+                            imageUrl = menu.imageUrl
                         )
                     }
+                    isLoading = false
                 } else {
                     // Coba filter dari semua menu jika endpoint getMenusByStand kosong
                     val allMenusRes = repository.getAllMenus()
+                    isLoading = false
                     allMenusRes.onSuccess { allRes ->
                         val matching = allRes.data?.filter { m ->
                             m.standId == standId || 
@@ -213,31 +189,42 @@ fun StandMenuScreen(
                             m.stands?.name?.contains(standName, ignoreCase = true) == true
                         } ?: emptyList()
 
-                        if (matching.isNotEmpty()) {
-                            menuList = matching.map { menu ->
-                                MenuItem(
-                                    id = menu.id,
-                                    name = menu.name,
-                                    standName = menu.stands?.name ?: standName,
-                                    price = menu.price,
-                                    stock = menu.stock,
-                                    prepareTime = menu.prepareTime ?: "10 mnt",
-                                    tag = null,
-                                    tagColor = null,
-                                    foodEmoji = "🍱",
-                                    standId = menu.standId ?: standId,
-                                    category = classifyCategory(menu.name, menu.stands?.category)
-                                )
-                            }
-                        } else {
-                            menuList = fallbackMenus
+                        menuList = matching.map { menu ->
+                            val isAvail = menu.isAvailable && menu.stock > 0
+                            MenuItem(
+                                id = menu.id,
+                                name = menu.name,
+                                standName = menu.stands?.name ?: standName,
+                                price = menu.price,
+                                stock = menu.stock,
+                                prepareTime = menu.prepareTime ?: "10 mnt",
+                                tag = when {
+                                    !menu.isAvailable || menu.stock <= 0 -> "Tidak Tersedia"
+                                    menu.stock in 1..4 -> "Tersisa ${menu.stock}"
+                                    menu.stock > 10 -> "Tersedia"
+                                    else -> null
+                                },
+                                tagColor = when {
+                                    !menu.isAvailable || menu.stock <= 0 -> Color(0xFFFEE2E2)
+                                    menu.stock in 1..4 -> Color(0xFFFEF3C7)
+                                    else -> Color(0xFFDCFCE7)
+                                },
+                                foodEmoji = "🍱",
+                                standId = menu.standId ?: standId,
+                                category = classifyCategory(menu.name, menu.stands?.category),
+                                isAvailable = isAvail,
+                                imageUrl = menu.imageUrl
+                            )
                         }
-                    }.onFailure {
-                        menuList = fallbackMenus
+                    }.onFailure { err ->
+                        menuList = emptyList()
+                        errorMessage = "Gagal memuat menu: ${err.message ?: "Kesalahan server"}"
                     }
                 }
-            }.onFailure {
-                menuList = fallbackMenus
+            }.onFailure { err ->
+                isLoading = false
+                menuList = emptyList()
+                errorMessage = "Gagal memuat menu: ${err.message ?: "Kesalahan server"}"
             }
         }
     }
@@ -486,7 +473,56 @@ fun StandMenuScreen(
                 }
 
                 // 5. Menu Items
-                if (filteredMenus.isEmpty() && !isLoading) {
+                if (isLoading) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(color = BluePrimary, modifier = Modifier.size(36.dp))
+                                Spacer(modifier = Modifier.height(14.dp))
+                                Text(
+                                    text = "Memuat menu dari stand...",
+                                    fontSize = 13.sp,
+                                    color = TextSecondary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                } else if (errorMessage != null) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(text = "⚠️", fontSize = 40.sp)
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = errorMessage ?: "Gagal memuat menu",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFDC2626),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Button(
+                                    onClick = { loadMenus() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text("Coba Muat Ulang", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                } else if (filteredMenus.isEmpty()) {
                     item {
                         Box(
                             modifier = Modifier
@@ -498,16 +534,23 @@ fun StandMenuScreen(
                                 Text(text = "🍽️", fontSize = 48.sp)
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text(
-                                    text = "Tidak ada menu yang sesuai",
+                                    text = if (searchQuery.isNotBlank() || selectedCategory != "Semua")
+                                        "Tidak ada menu yang sesuai filter"
+                                    else
+                                        "Belum ada menu di stand ini",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = TextPrimary
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Coba gunakan kata kunci pencarian yang lain",
+                                    text = if (searchQuery.isNotBlank() || selectedCategory != "Semua")
+                                        "Coba gunakan kata kunci pencarian atau kategori lain"
+                                    else
+                                        "Penjual stand ini belum menambahkan menu makanan atau minuman.",
                                     fontSize = 12.sp,
-                                    color = TextSecondary
+                                    color = TextSecondary,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
                             }
                         }
@@ -527,7 +570,7 @@ fun StandMenuScreen(
                                     .padding(14.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Food Thumbnail Emoji
+                                // Food Thumbnail
                                 Box(
                                     modifier = Modifier
                                         .size(68.dp)
@@ -535,7 +578,19 @@ fun StandMenuScreen(
                                         .background(Color(0xFFEFF6FF)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(text = menu.foodEmoji, fontSize = 34.sp)
+                                    if (!menu.imageUrl.isNullOrBlank()) {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(context)
+                                                .data(menu.imageUrl)
+                                                .crossfade(true)
+                                                .build(),
+                                            contentDescription = menu.name,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Text(text = menu.foodEmoji, fontSize = 34.sp)
+                                    }
                                 }
 
                                 Spacer(modifier = Modifier.width(14.dp))
@@ -551,6 +606,7 @@ fun StandMenuScreen(
                                         )
                                         menu.tag?.let { tag ->
                                             Spacer(modifier = Modifier.width(6.dp))
+                                            val tagTextColor = if (tag == "Tidak Tersedia") Color(0xFFDC2626) else if (menu.stock in 1..4) Color(0xFFB45309) else Color(0xFF15803D)
                                             Box(
                                                 modifier = Modifier
                                                     .clip(RoundedCornerShape(6.dp))
@@ -561,7 +617,7 @@ fun StandMenuScreen(
                                                     text = tag,
                                                     fontSize = 9.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFFB45309)
+                                                    color = tagTextColor
                                                 )
                                             }
                                         }
@@ -581,15 +637,21 @@ fun StandMenuScreen(
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
+                                        val canOrder = menu.isAvailable && menu.stock > 0
+
                                         Text(
                                             text = "Rp ${String.format(Locale.GERMANY, "%,d", menu.price)}",
                                             fontSize = 15.sp,
                                             fontWeight = FontWeight.ExtraBold,
-                                            color = BluePrimary
+                                            color = if (canOrder) BluePrimary else TextMuted
                                         )
 
                                         Button(
                                             onClick = {
+                                                if (!canOrder) {
+                                                    Toast.makeText(context, "${menu.name} sedang tidak tersedia", Toast.LENGTH_SHORT).show()
+                                                    return@Button
+                                                }
                                                 val foodType = when {
                                                     menu.name.contains("Kebab", true) -> FoodImageType.KEBAB
                                                     menu.name.contains("Ketoprak", true) -> FoodImageType.KETOPRAK
@@ -614,19 +676,29 @@ fun StandMenuScreen(
                                                 )
                                                 Toast.makeText(context, "${menu.name} ditambahkan ke keranjang!", Toast.LENGTH_SHORT).show()
                                             },
+                                            enabled = canOrder,
                                             shape = RoundedCornerShape(16.dp),
-                                            colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = if (canOrder) BluePrimary else Color(0xFFE2E8F0),
+                                                contentColor = if (canOrder) Color.White else Color(0xFF94A3B8),
+                                                disabledContainerColor = Color(0xFFE2E8F0),
+                                                disabledContentColor = Color(0xFF94A3B8)
+                                            ),
                                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                                             modifier = Modifier.height(34.dp)
                                         ) {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Add,
-                                                    contentDescription = "Pesan",
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text(text = "Pesan", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                if (canOrder) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Add,
+                                                        contentDescription = "Pesan",
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text(text = "Pesan", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                } else {
+                                                    Text(text = "Habis", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                }
                                             }
                                         }
                                     }

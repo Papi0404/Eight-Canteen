@@ -359,10 +359,9 @@ fun LoginScreen(
                                     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                                     onRequestOtpSuccess(phoneNumber)
                                 }.onFailure { e ->
-                                    // Fallback / notification if server response error
-                                    Toast.makeText(context, "Info Server: ${e.message}", Toast.LENGTH_LONG).show()
-                                    // Izinkan lanjut ke layar OTP untuk kelancaran pengujian
-                                    onRequestOtpSuccess(phoneNumber)
+                                    val err = e.message ?: "Koneksi ke backend gagal"
+                                    errorMessage = "Gagal kirim OTP: $err"
+                                    Toast.makeText(context, "Gagal kirim OTP: $err", Toast.LENGTH_LONG).show()
                                 }
                             }
                         },

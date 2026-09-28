@@ -44,9 +44,9 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun ProfileScreen(
-    currentName: String = "Fajar Pratama",
-    currentClass: String = "XII RPL",
-    currentPhone: String = "81234567890",
+    currentName: String = "",
+    currentClass: String = "",
+    currentPhone: String = "",
     onBackClick: () -> Unit = {},
     onLogoutClick: () -> Unit = {},
     onSaveSuccess: (String, String) -> Unit = { _, _ -> }

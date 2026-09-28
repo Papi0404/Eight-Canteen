@@ -41,6 +41,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -64,11 +65,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.januarzidanetinendeng.eightcanteen.data.local.SessionManager
 import com.januarzidanetinendeng.eightcanteen.data.repository.CanteenRepository
 import com.januarzidanetinendeng.eightcanteen.ui.checkout.CartItem
@@ -109,7 +113,9 @@ data class MenuItem(
     val tagColor: Color?,
     val foodEmoji: String,
     val standId: String? = null,
-    val category: String = "Makanan"
+    val category: String = "Makanan",
+    val isAvailable: Boolean = true,
+    val imageUrl: String? = null
 )
 
 private fun classifyMenuCategory(name: String, standCategory: String?): String {
@@ -130,8 +136,8 @@ private fun classifyMenuCategory(name: String, standCategory: String?): String {
 @Composable
 fun StudentDashboardScreen(
     cartViewModel: CartViewModel = remember { CartViewModel() },
-    studentName: String = "Dimas Pratama",
-    studentClass: String = "XII RPL 2 • SMKN 8",
+    studentName: String = "",
+    studentClass: String = "",
     loyaltyPoints: Int = 0,
     initialNavTab: Int = 0,
     onPointsClick: () -> Unit = {},
@@ -159,18 +165,23 @@ fun StudentDashboardScreen(
     val cartCount = cartUiState.totalMenuCount
     val cartTotal = cartUiState.subtotal
 
-    var currentStudentName by remember { mutableStateOf(studentName) }
+    var currentStudentName by remember { mutableStateOf(studentName.ifBlank { "Siswa" }) }
     var currentStudentClass by remember { mutableStateOf(studentClass) }
     var currentLoyaltyPoints by remember { mutableIntStateOf(loyaltyPoints) }
 
     var stands by remember { mutableStateOf<List<StandItem>>(emptyList()) }
     var menuItems by remember { mutableStateOf<List<MenuItem>>(emptyList()) }
+    var isLoadingStands by remember { mutableStateOf(true) }
+    var isLoadingMenus by remember { mutableStateOf(true) }
     val repository = remember { CanteenRepository() }
 
     LaunchedEffect(Unit) {
         val session = SessionManager.getInstance(context)
         if (session.getUserName().isNotBlank() && session.getUserName() != "Pengguna") {
             currentStudentName = session.getUserName()
+        }
+        if (!session.getStudentClass().isNullOrBlank()) {
+            currentStudentClass = session.getStudentClass() ?: ""
         }
         currentLoyaltyPoints = session.getPoints()
 
@@ -194,7 +205,9 @@ fun StudentDashboardScreen(
         }
 
         // 2. Fetch Stands
+        isLoadingStands = true
         repository.getStands().onSuccess { res ->
+            isLoadingStands = false
             val apiStands = res.data ?: emptyList()
             stands = apiStands.map { stand ->
                 StandItem(
@@ -213,13 +226,19 @@ fun StudentDashboardScreen(
                     }
                 )
             }
+        }.onFailure {
+            isLoadingStands = false
+            stands = emptyList()
         }
 
         // 3. Fetch Menus
+        isLoadingMenus = true
         repository.getAllMenus().onSuccess { res ->
+            isLoadingMenus = false
             val apiMenus = res.data ?: emptyList()
             menuItems = apiMenus.map { menu ->
                 val resolvedCategory = classifyMenuCategory(menu.name, menu.stands?.category)
+                val isAvail = menu.isAvailable && menu.stock > 0
                 MenuItem(
                     id = menu.id,
                     name = menu.name,
@@ -227,8 +246,17 @@ fun StudentDashboardScreen(
                     price = menu.price,
                     stock = menu.stock,
                     prepareTime = menu.prepareTime ?: "10 mnt",
-                    tag = if (menu.stock in 1..4) "Tersisa ${menu.stock}" else if (menu.stock > 10) "Tersedia" else null,
-                    tagColor = if (menu.stock in 1..4) Color(0xFFFEE2E2) else Color(0xFFDCFCE7),
+                    tag = when {
+                        !menu.isAvailable || menu.stock <= 0 -> "Tidak Tersedia"
+                        menu.stock in 1..4 -> "Tersisa ${menu.stock}"
+                        menu.stock > 10 -> "Tersedia"
+                        else -> null
+                    },
+                    tagColor = when {
+                        !menu.isAvailable || menu.stock <= 0 -> Color(0xFFFEE2E2)
+                        menu.stock in 1..4 -> Color(0xFFFEF3C7)
+                        else -> Color(0xFFDCFCE7)
+                    },
                     foodEmoji = when {
                         menu.name.contains("Kebab", true) -> "🥙"
                         menu.name.contains("Ketoprak", true) -> "🍲"
@@ -240,9 +268,14 @@ fun StudentDashboardScreen(
                         else -> "🍛"
                     },
                     standId = menu.standId ?: menu.stands?.id,
-                    category = resolvedCategory
+                    category = resolvedCategory,
+                    isAvailable = isAvail,
+                    imageUrl = menu.imageUrl
                 )
             }
+        }.onFailure {
+            isLoadingMenus = false
+            menuItems = emptyList()
         }
     }
 
@@ -595,52 +628,88 @@ fun StudentDashboardScreen(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 // Horizontal Stand Cards (Tanpa Rating)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(standsScrollState),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    stands.forEach { stand ->
-                        Card(
+                if (isLoadingStands) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(color = BluePrimary, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Memuat daftar stand...", fontSize = 12.sp, color = TextSecondary)
+                        }
+                    }
+                } else if (stands.isEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, BorderColor)
+                    ) {
+                        Box(
                             modifier = Modifier
-                                .width(150.dp)
-                                .clickable {
-                                    onStandClick(stand.id, stand.name)
-                                },
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            border = BorderStroke(1.dp, BorderColor)
+                                .fillMaxWidth()
+                                .padding(18.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Column(modifier = Modifier.padding(10.dp)) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(90.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(Color(0xFFEFF6FF)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(text = stand.foodEmoji, fontSize = 42.sp)
+                            Text(
+                                text = "Belum ada stand yang terdaftar di kantin",
+                                fontSize = 12.sp,
+                                color = TextSecondary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(standsScrollState),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        stands.forEach { stand ->
+                            Card(
+                                modifier = Modifier
+                                    .width(150.dp)
+                                    .clickable {
+                                        onStandClick(stand.id, stand.name)
+                                    },
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = BorderStroke(1.dp, BorderColor)
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(90.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(Color(0xFFEFF6FF)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(text = stand.foodEmoji, fontSize = 42.sp)
 
-                                    if (stand.isBusy) {
-                                        Box(
-                                            modifier = Modifier
-                                                .align(Alignment.BottomEnd)
-                                                .padding(6.dp)
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(Color(0xFFFFEDD5))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                        ) {
-                                            Text(text = "Ramai", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFFC2410C))
+                                        if (stand.isBusy) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomEnd)
+                                                    .padding(6.dp)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(Color(0xFFFFEDD5))
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(text = "Ramai", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFFC2410C))
+                                            }
                                         }
                                     }
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Text(text = stand.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary, maxLines = 1)
+                                    Text(text = stand.distanceOrTime, fontSize = 11.sp, color = TextSecondary)
                                 }
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                Text(text = stand.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary, maxLines = 1)
-                                Text(text = stand.distanceOrTime, fontSize = 11.sp, color = TextSecondary)
                             }
                         }
                     }
@@ -666,117 +735,193 @@ fun StudentDashboardScreen(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 // Vertical Menu List
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    displayedMenus.forEach { menu ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            border = BorderStroke(1.dp, BorderColor)
+                if (isLoadingMenus) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(color = BluePrimary, modifier = Modifier.size(28.dp), strokeWidth = 2.5.dp)
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text("Memuat menu kantin...", fontSize = 12.sp, color = TextSecondary)
+                        }
+                    }
+                } else if (displayedMenus.isEmpty()) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, BorderColor)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(text = "🍽️", fontSize = 34.sp)
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = if (searchQuery.isNotBlank() || selectedFilter != "Semua")
+                                        "Tidak ada menu yang sesuai pencarian"
+                                    else
+                                        "Belum ada menu yang tersedia saat ini",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Menu akan muncul setelah penjual stand menambahkannya.",
+                                    fontSize = 11.sp,
+                                    color = TextSecondary,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        displayedMenus.forEach { menu ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = BorderStroke(1.dp, BorderColor)
                             ) {
-                                // Food Thumbnail Box
-                                Box(
+                                Row(
                                     modifier = Modifier
-                                        .size(80.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(Color(0xFFFEF3C7)),
-                                    contentAlignment = Alignment.Center
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(text = menu.foodEmoji, fontSize = 38.sp)
-
-                                    // Low Stock Badge
+                                    // Food Thumbnail Box
                                     Box(
                                         modifier = Modifier
-                                            .align(Alignment.BottomStart)
-                                            .padding(4.dp)
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(Color(0xFFDC2626))
-                                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                                            .size(80.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(Color(0xFFFEF3C7)),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Text(
-                                            text = "Sisa ${menu.stock}",
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
-                                        )
-                                    }
-                                }
+                                        if (!menu.imageUrl.isNullOrBlank()) {
+                                            AsyncImage(
+                                                model = ImageRequest.Builder(context)
+                                                    .data(menu.imageUrl)
+                                                    .crossfade(true)
+                                                    .build(),
+                                                contentDescription = menu.name,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        } else {
+                                            Text(text = menu.foodEmoji, fontSize = 38.sp)
+                                        }
 
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                // Details Column
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(text = menu.name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                                        menu.tag?.let { tag ->
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(6.dp))
-                                                    .background(menu.tagColor ?: Color(0xFFFEF3C7))
-                                                    .padding(horizontal = 5.dp, vertical = 1.dp)
-                                            ) {
-                                                Text(text = tag, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFFB45309))
-                                            }
+                                        // Low Stock Badge
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomStart)
+                                                .padding(4.dp)
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(Color(0xFFDC2626))
+                                                .padding(horizontal = 5.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = "Sisa ${menu.stock}",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
                                         }
                                     }
 
-                                    Text(text = menu.standName, fontSize = 11.sp, color = TextSecondary)
-                                    Text(text = "⏱️ ${menu.prepareTime} • Tersisa: ${menu.stock} porsi", fontSize = 10.sp, color = TextMuted)
+                                    Spacer(modifier = Modifier.width(12.dp))
 
-                                    Spacer(modifier = Modifier.height(4.dp))
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "Rp ${String.format(Locale.GERMANY, "%,d", menu.price)}",
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = BluePrimary
-                                        )
-
-                                        Button(
-                                            onClick = {
-                                                val foodType = when (menu.id) {
-                                                    "m1" -> FoodImageType.KEBAB
-                                                    "m2" -> FoodImageType.KETOPRAK
-                                                    "m3" -> FoodImageType.AYAM_GEPREK
-                                                    "m4" -> FoodImageType.DIMSUM
-                                                    "m5" -> FoodImageType.ES_KOPI
-                                                    else -> FoodImageType.GENERIC
+                                    // Details Column
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(text = menu.name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                            menu.tag?.let { tag ->
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                val tagTextColor = if (tag == "Tidak Tersedia") Color(0xFFDC2626) else if (menu.stock in 1..4) Color(0xFFB45309) else Color(0xFF15803D)
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(menu.tagColor ?: Color(0xFFFEF3C7))
+                                                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                                                ) {
+                                                    Text(text = tag, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = tagTextColor)
                                                 }
-                                                cartViewModel.addToCart(
-                                                    CartItem(
-                                                        id = menu.id,
-                                                        name = menu.name,
-                                                        price = menu.price.toDouble(),
-                                                        quantity = 1,
-                                                        standName = menu.standName,
-                                                        standId = menu.standId,
-                                                        imageType = foodType,
-                                                        foodEmoji = menu.foodEmoji
-                                                    )
-                                                )
-                                                Toast.makeText(context, "${menu.name} ditambahkan ke keranjang!", Toast.LENGTH_SHORT).show()
-                                            },
-                                            shape = RoundedCornerShape(16.dp),
-                                            colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
-                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                            modifier = Modifier.height(34.dp)
+                                            }
+                                        }
+
+                                        Text(text = menu.standName, fontSize = 11.sp, color = TextSecondary)
+                                        Text(text = "⏱️ ${menu.prepareTime} • Tersisa: ${menu.stock} porsi", fontSize = 10.sp, color = TextMuted)
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(imageVector = Icons.Default.Add, contentDescription = "Pesan", modifier = Modifier.size(14.dp))
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text(text = "Pesan", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            Text(
+                                                text = "Rp ${String.format(Locale.GERMANY, "%,d", menu.price)}",
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = if (menu.isAvailable && menu.stock > 0) BluePrimary else TextMuted
+                                            )
+
+                                            val canOrder = menu.isAvailable && menu.stock > 0
+
+                                            Button(
+                                                onClick = {
+                                                    val foodType = when {
+                                                        menu.name.contains("Kebab", true) -> FoodImageType.KEBAB
+                                                        menu.name.contains("Ketoprak", true) -> FoodImageType.KETOPRAK
+                                                        menu.name.contains("Ayam", true) || menu.name.contains("Geprek", true) -> FoodImageType.AYAM_GEPREK
+                                                        menu.name.contains("Dimsum", true) -> FoodImageType.DIMSUM
+                                                        menu.name.contains("Kopi", true) -> FoodImageType.ES_KOPI
+                                                        menu.name.contains("Jeruk", true) || menu.name.contains("Jus", true) -> FoodImageType.ES_JERUK
+                                                        else -> FoodImageType.GENERIC
+                                                    }
+                                                    cartViewModel.addToCart(
+                                                        CartItem(
+                                                            id = menu.id,
+                                                            name = menu.name,
+                                                            price = menu.price.toDouble(),
+                                                            quantity = 1,
+                                                            standName = menu.standName,
+                                                            standId = menu.standId,
+                                                            imageType = foodType,
+                                                            foodEmoji = menu.foodEmoji
+                                                        )
+                                                    )
+                                                    Toast.makeText(context, "${menu.name} ditambahkan ke keranjang!", Toast.LENGTH_SHORT).show()
+                                                },
+                                                enabled = canOrder,
+                                                shape = RoundedCornerShape(16.dp),
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = if (canOrder) BluePrimary else Color(0xFFE2E8F0),
+                                                    contentColor = if (canOrder) Color.White else Color(0xFF94A3B8),
+                                                    disabledContainerColor = Color(0xFFE2E8F0),
+                                                    disabledContentColor = Color(0xFF94A3B8)
+                                                ),
+                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                                modifier = Modifier.height(34.dp)
+                                            ) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    if (canOrder) {
+                                                        Icon(imageVector = Icons.Default.Add, contentDescription = "Pesan", modifier = Modifier.size(14.dp))
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Text(text = "Pesan", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                                    } else {
+                                                        Text(text = "Habis", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                                    }
+                                                }
                                             }
                                         }
                                     }

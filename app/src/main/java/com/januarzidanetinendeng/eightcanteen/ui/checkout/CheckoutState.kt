@@ -22,24 +22,25 @@ data class CartItem(
     val name: String,
     val price: Double,
     val quantity: Int = 1,
-    val standName: String = "Stand 04",
+    val standName: String = "",
     val standId: String? = null,
     val imageUrl: String = "",
     val imageType: FoodImageType = FoodImageType.GENERIC,
-    val foodEmoji: String = "🍱"
+    val foodEmoji: String = "🍱",
+    val note: String = ""
 )
 
 data class CheckoutUiState(
     val timeSlotTitle: String = "Istirahat 1 (10:15 – 10:30 WIB)",
-    val standInfo: String = "Stand 04 • Kebab Bang Ali",
+    val standInfo: String = "",
     val cartItems: List<CartItem> = emptyList(),
-    val orderNote: String = "Mayones dipisah, jeruk es sedikit.",
-    val userPoints: Int = 50,
-    val redeemPointsCost: Int = 5,
-    val discountAmount: Double = 2500.0,
-    val isPointsDiscountEnabled: Boolean = true,
+    val orderNote: String = "",
+    val userPoints: Int = 0,
+    val redeemPointsCost: Int = 20,
+    val discountAmount: Double = 0.0,
+    val isPointsDiscountEnabled: Boolean = false,
     val serviceFee: Double = 0.0,
-    val selectedPaymentMethod: PaymentMethod = PaymentMethod.QRIS,
+    val selectedPaymentMethod: PaymentMethod = PaymentMethod.CASH,
     val isPaymentSuccess: Boolean = false
 ) {
     val totalMenuCount: Int

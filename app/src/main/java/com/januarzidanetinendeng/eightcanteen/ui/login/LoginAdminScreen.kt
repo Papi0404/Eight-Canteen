@@ -82,7 +82,7 @@ fun LoginAdminScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    var adminPhone by remember { mutableStateOf("08123456789") }
+    var adminPhone by remember { mutableStateOf("") }
     var otpCode by remember { mutableStateOf("") }
     var isOtpSent by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }

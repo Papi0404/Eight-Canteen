@@ -93,9 +93,9 @@ data class PointHistoryItem(
 
 @Composable
 fun PointsRewardScreen(
-    studentName: String = "Fajar Pratama",
-    studentClass: String = "XI RPL 2",
-    currentPoints: Int = 25,
+    studentName: String = "",
+    studentClass: String = "",
+    currentPoints: Int = 0,
     onBackClick: () -> Unit = {},
     onNavigateToHome: () -> Unit = {},
     onNavigateToOrders: () -> Unit = {},
@@ -106,24 +106,8 @@ fun PointsRewardScreen(
     var selectedNavTab by remember { mutableIntStateOf(2) }
 
     val myVouchers = remember { mutableStateListOf<RewardItem>() }
-
-    val otherRewards = remember {
-        listOf(
-            RewardItem("r1", "Es Teh Manis Jumbo", "Stand Minuman D & Bu Ani", 5, "Segar", "🥤"),
-            RewardItem("r2", "2 Pcs Gorengan...", "Stand Gorengan Pak Kumis", 3, "Camilan", "🧆"),
-            RewardItem("r3", "Voucher Diskon Rp...", "Berlaku di Semua Stand", 10, "Potongan", "🎫"),
-            RewardItem("r4", "Ekstra Keju / Sambal", "Stand Kebab & Ayam...", 2, "Add-on", "🧀")
-        )
-    }
-
-    val pointHistory = remember {
-        listOf(
-            PointHistoryItem("h1", "Pre-order Kebab Jumbo (Kebab Bang Ali)", "Hari ini • 09.42 WIB", 2, "🍱"),
-            PointHistoryItem("h2", "Makan Siang Ayam Geprek (Stand A)", "Kemarin • 12.15 WIB", 3, "🍴"),
-            PointHistoryItem("h3", "Penukaran Makanan di Stand B", "5 Okt 2025 • 10.05 WIB", -20, "🎁"),
-            PointHistoryItem("h4", "Bonus Siswa Baru & Profil", "1 Okt 2025 • 07.30 WIB", 5, "🎉")
-        )
-    }
+    val otherRewards = remember { emptyList<RewardItem>() }
+    val pointHistory = remember { emptyList<PointHistoryItem>() }
 
     Scaffold(
         containerColor = ScreenBg,
@@ -292,7 +276,7 @@ fun PointsRewardScreen(
                     Text(text = "✍️", fontSize = 14.sp)
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Halo, $studentName!",
+                        text = "Halo, ${studentName.ifBlank { "Siswa" }}!",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
@@ -306,7 +290,7 @@ fun PointsRewardScreen(
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
-                        text = studentClass,
+                        text = studentClass.ifBlank { "SMKN 8 Jakarta" },
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = BluePrimary
@@ -354,7 +338,7 @@ fun PointsRewardScreen(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Color.White.copy(alpha = 0.2f))
-                                .clickable { Toast.makeText(context, "Dapatkan +1 Poin tiap kelipatan Rp 10.000", Toast.LENGTH_SHORT).show() }
+                                .clickable { Toast.makeText(context, "Dapatkan +1 Poin tiap transaksi Rp 10.000", Toast.LENGTH_SHORT).show() }
                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
                             Text(text = "Cara Kumpul ℹ️", fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.Bold)
@@ -391,8 +375,9 @@ fun PointsRewardScreen(
                                 .background(Color(0xFFD97706))
                                 .padding(horizontal = 10.dp, vertical = 5.dp)
                         ) {
+                            val equivalentRupiah = (currentPoints * 100).toDouble()
                             Text(
-                                text = "= Setara Rp 12.500",
+                                text = "= Setara Rp ${String.format(java.util.Locale.GERMANY, "%,d", equivalentRupiah.toLong())}",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
@@ -409,7 +394,7 @@ fun PointsRewardScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Target Hadiah Utama 20 / 20 Poin",
+                            text = "Target Hadiah: $currentPoints / 20 Poin",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -422,7 +407,7 @@ fun PointsRewardScreen(
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "🎉 Siap Ditukar!",
+                                text = if (currentPoints >= 20) "🎉 Siap Ditukar!" else "${(currentPoints * 100) / 20}%",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFD97706)
@@ -432,8 +417,9 @@ fun PointsRewardScreen(
 
                     Spacer(modifier = Modifier.height(6.dp))
 
+                    val progressFraction = (currentPoints.toFloat() / 20f).coerceIn(0f, 1f)
                     LinearProgressIndicator(
-                        progress = { 1.0f },
+                        progress = { progressFraction },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(8.dp)
@@ -542,121 +528,48 @@ fun PointsRewardScreen(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(text = "🎁", fontSize = 14.sp)
                     }
-                    Text(text = "Paling banyak ditukarkan oleh siswa minggu ini", fontSize = 11.sp, color = TextSecondary)
+                    Text(text = "Hadiah spesial penukaran poin kantin", fontSize = 11.sp, color = TextSecondary)
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Featured Reward Card Component
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 border = BorderStroke(1.dp, BorderColor)
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    // Food Image Thumbnail Box
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(140.dp)
-                            .clip(RoundedCornerShape(16.dp))
+                            .size(56.dp)
+                            .clip(CircleShape)
                             .background(Color(0xFFFEF3C7)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = "🍱", fontSize = 64.sp)
-
-                        // Top Badges
-                        Row(
-                            modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .padding(10.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(Color(0xFFD97706))
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                            ) {
-                                Text(text = "⭐ Favorit Siswa", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(Color.White.copy(alpha = 0.9f))
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                            ) {
-                                Text(text = "Stand A, B, C", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                            }
-                        }
-
-                        // Points Tag Overlay
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(10.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color(0xFFD97706))
-                                .padding(horizontal = 12.dp, vertical = 5.dp)
-                        ) {
-                            Text(text = "✪ 20 P", fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
-                        }
+                        Text(text = "🎁", fontSize = 28.sp)
                     }
-
                     Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(text = "VOUCHER MAKAN SIANG", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = TextMuted, letterSpacing = 0.5.sp)
-                    Text(text = "1 Porsi Makan Gratis", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = "🍱 Maks. subsidi senilai Rp 10.000", fontSize = 11.sp, color = TextSecondary)
-                        Text(text = "⏱️ Istirahat ke-1 & 2", fontSize = 11.sp, color = TextSecondary)
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        ShieldCheckIcon(size = 12.dp, tint = BluePrimary)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Tunjukkan kode QR klaim ke petugas kasir stand sebelum jam istirahat berakhir.",
-                            fontSize = 10.sp,
-                            color = TextMuted
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Big Action Claim Button
-                    Button(
-                        onClick = {
-                            myVouchers.add(RewardItem("v0", "1 Porsi Makan Siang Gratis", "Kantin SMKN 8", 20, "Voucher", "🍱"))
-                            Toast.makeText(context, "Voucher 1 Porsi Makan Gratis Berhasil Ditambahkan ke Voucher Saya!", Toast.LENGTH_LONG).show()
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFD97706),
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(imageVector = Icons.Default.CardGiftcard, contentDescription = "Gift", modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "Tukarkan Sekarang (20 Poin)", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
+                    Text(
+                        text = "Hadiah Belum Tersedia",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Voucher atau hadiah penukaran poin saat ini belum tersedia di sistem kantin. Terus kumpulkan poin kamu dari setiap transaksi pemesanan!",
+                        fontSize = 11.sp,
+                        color = TextSecondary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
                 }
             }
 
@@ -670,69 +583,66 @@ fun PointsRewardScreen(
             ) {
                 Column {
                     Text(text = "Pilihan Hadiah Lainnya", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                    Text(text = "Jajan hemat mulai dari 2 poin saja", fontSize = 11.sp, color = TextSecondary)
+                    Text(text = "Jajan hemat dengan penukaran poin", fontSize = 11.sp, color = TextSecondary)
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(BlueLightBg)
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text(text = "4 Pilihan", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
+                if (otherRewards.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(BlueLightBg)
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(text = "${otherRewards.size} Pilihan", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 2x2 Grid Rewards
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(
+            if (otherRewards.isEmpty()) {
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, BorderColor)
                 ) {
-                    // Card 1
-                    RewardCard(
-                        item = otherRewards[0],
-                        modifier = Modifier.weight(1f),
-                        onClaimClick = { 
-                            myVouchers.add(otherRewards[0])
-                            Toast.makeText(context, "Klaim Es Teh Manis Jumbo (5 Poin) Berhasil!", Toast.LENGTH_SHORT).show() 
-                        }
-                    )
-                    // Card 2
-                    RewardCard(
-                        item = otherRewards[1],
-                        modifier = Modifier.weight(1f),
-                        onClaimClick = { 
-                            myVouchers.add(otherRewards[1])
-                            Toast.makeText(context, "Klaim 2 Pcs Gorengan (3 Poin) Berhasil!", Toast.LENGTH_SHORT).show() 
-                        }
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Belum ada pilihan hadiah tambahan dari stand kantin.",
+                            fontSize = 12.sp,
+                            color = TextSecondary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Card 3
-                    RewardCard(
-                        item = otherRewards[2],
-                        modifier = Modifier.weight(1f),
-                        onClaimClick = { 
-                            myVouchers.add(otherRewards[2])
-                            Toast.makeText(context, "Klaim Voucher Diskon Rp 5.000 Berhasil!", Toast.LENGTH_SHORT).show() 
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    otherRewards.chunked(2).forEach { rowItems ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            rowItems.forEach { item ->
+                                RewardCard(
+                                    item = item,
+                                    modifier = Modifier.weight(1f),
+                                    onClaimClick = {
+                                        myVouchers.add(item)
+                                        Toast.makeText(context, "Klaim ${item.name} berhasil!", Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                            }
+                            if (rowItems.size == 1) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
                         }
-                    )
-                    // Card 4
-                    RewardCard(
-                        item = otherRewards[3],
-                        modifier = Modifier.weight(1f),
-                        onClaimClick = { 
-                            myVouchers.add(otherRewards[3])
-                            Toast.makeText(context, "Klaim Ekstra Keju/Sambal Berhasil!", Toast.LENGTH_SHORT).show() 
-                        }
-                    )
+                    }
                 }
             }
 
@@ -745,67 +655,101 @@ fun PointsRewardScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = "Riwayat Perolehan Poin", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                Text(
-                    text = "Lihat Semua",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = BluePrimary,
-                    modifier = Modifier.clickable { Toast.makeText(context, "Membuka seluruh riwayat poin", Toast.LENGTH_SHORT).show() }
-                )
+                if (pointHistory.isNotEmpty()) {
+                    Text(
+                        text = "Lihat Semua",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BluePrimary,
+                        modifier = Modifier.clickable { Toast.makeText(context, "Membuka seluruh riwayat poin", Toast.LENGTH_SHORT).show() }
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // History List
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                pointHistory.forEach { h ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, BorderColor)
+            if (pointHistory.isEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, BorderColor)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                        Text(text = "🪙", fontSize = 32.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Belum Ada Riwayat Poin",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Riwayat perolehan poin dari transaksi kantin akan muncul di sini.",
+                            fontSize = 11.sp,
+                            color = TextSecondary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    pointHistory.forEach { h ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, BorderColor)
                         ) {
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(InputBg),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(text = h.emoji, fontSize = 18.sp)
+                                    }
+
+                                    Spacer(modifier = Modifier.width(10.dp))
+
+                                    Column {
+                                        Text(text = h.title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary, maxLines = 1)
+                                        Text(text = h.date, fontSize = 10.sp, color = TextMuted)
+                                    }
+                                }
+
                                 Box(
                                     modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(CircleShape)
-                                        .background(InputBg),
-                                    contentAlignment = Alignment.Center
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(if (h.pointsChange > 0) BlueLightBg else Color(0xFFFEE2E2))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
-                                    Text(text = h.emoji, fontSize = 18.sp)
+                                    Text(
+                                        text = if (h.pointsChange > 0) "+${h.pointsChange} POIN" else "${h.pointsChange} POIN",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = if (h.pointsChange > 0) BluePrimary else Color(0xFFDC2626)
+                                    )
                                 }
-
-                                Spacer(modifier = Modifier.width(10.dp))
-
-                                Column {
-                                    Text(text = h.title, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary, maxLines = 1)
-                                    Text(text = h.date, fontSize = 10.sp, color = TextMuted)
-                                }
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (h.pointsChange > 0) BlueLightBg else Color(0xFFFEE2E2))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = if (h.pointsChange > 0) "+${h.pointsChange} POIN" else "${h.pointsChange} POIN",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = if (h.pointsChange > 0) BluePrimary else Color(0xFFDC2626)
-                                )
                             }
                         }
                     }

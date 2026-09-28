@@ -10,13 +10,13 @@ class AuthViewModel : ViewModel() {
     private val _currentUserRole = MutableStateFlow(UserRole.STUDENT)
     val currentUserRole: StateFlow<UserRole> = _currentUserRole.asStateFlow()
 
-    private val _userName = MutableStateFlow("Dimas Pratama")
+    private val _userName = MutableStateFlow("")
     val userName: StateFlow<String> = _userName.asStateFlow()
 
-    private val _userClass = MutableStateFlow("XII RPL 2 • SMKN 8")
+    private val _userClass = MutableStateFlow("")
     val userClass: StateFlow<String> = _userClass.asStateFlow()
 
-    private val _userPhone = MutableStateFlow("812-3456-7890")
+    private val _userPhone = MutableStateFlow("")
     val userPhone: StateFlow<String> = _userPhone.asStateFlow()
 
     // Daftar Nomor WhatsApp Admin Terdaftar (Simulasi Database Koperasi SMKN 8)
@@ -41,8 +41,8 @@ class AuthViewModel : ViewModel() {
     }
 
     fun loginAsStudent(name: String, className: String, phone: String) {
-        _userName.value = name.ifBlank { "Siswa SMKN 8" }
-        _userClass.value = className.ifBlank { "XII RPL 1 • SMKN 8" }
+        _userName.value = name.ifBlank { "Siswa" }
+        _userClass.value = className
         _userPhone.value = phone
         _currentUserRole.value = UserRole.STUDENT
     }
@@ -50,8 +50,8 @@ class AuthViewModel : ViewModel() {
     fun verifyAdminOtpAndLogin(phone: String, otpCode: String): Boolean {
         if (otpCode.length == 4) {
             _currentUserRole.value = UserRole.ADMIN
-            _userName.value = "Petugas Koperasi SMKN 8"
-            _userClass.value = "Admin / Pengelola Koperasi"
+            _userName.value = "Pengelola Koperasi"
+            _userClass.value = "Admin Koperasi"
             _userPhone.value = phone
             return true
         }
@@ -60,8 +60,9 @@ class AuthViewModel : ViewModel() {
 
     fun logout() {
         _currentUserRole.value = UserRole.STUDENT
-        _userName.value = "Siswa SMKN 8"
-        _userClass.value = "Siswa • SMKN 8"
+        _userName.value = ""
+        _userClass.value = ""
+        _userPhone.value = ""
     }
 
     fun getRole(): UserRole {

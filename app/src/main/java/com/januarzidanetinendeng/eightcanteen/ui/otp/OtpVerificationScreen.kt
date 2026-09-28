@@ -85,7 +85,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun OtpVerificationScreen(
-    phoneNumber: String = "812-3456-7890",
+    phoneNumber: String = "",
     onBackClick: () -> Unit = {},
     onEditPhoneClick: () -> Unit = {},
     onVerificationSuccess: (String, com.januarzidanetinendeng.eightcanteen.data.remote.UserProfile?) -> Unit = { _, _ -> }

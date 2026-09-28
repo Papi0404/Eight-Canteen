@@ -124,43 +124,10 @@ fun AdminDashboardScreen(
     var selectedPeriod by remember { mutableStateOf("Minggu Ini") }
     var selectedNavTab by remember { mutableIntStateOf(0) } // Beranda admin tab active
 
-    val standOmsetList = remember {
-        listOf(
-            StandOmset("C", "Stand C (Ayam Geprek 8)", 950000, 0.95f, BluePrimary),
-            StandOmset("A", "Stand A (Kebab Bang Ali)", 820000, 0.82f, BluePrimary),
-            StandOmset("B", "Stand B (Ketoprak Bu Joko)", 740000, 0.74f, BluePrimary),
-            StandOmset("D", "Stand D (Es & Aneka Jus)", 680000, 0.68f, Color(0xFFF97316)),
-            StandOmset("E", "Stand E (Snack & Pastry)", 650000, 0.65f, TextMuted)
-        )
-    }
-
-    var pendingStands by remember {
-        mutableStateOf(
-            listOf(
-                PendingStand("ps1", "Ibu Siti", "Mie Ayam Manggarai", "Makanan Berat"),
-                PendingStand("ps2", "Kang Maman", "Cilok Kuah Pedas", "Cemilan")
-            )
-        )
-    }
-
-    var payoutList by remember {
-        mutableStateOf(
-            listOf(
-                PayoutItem("C", "Ayam Geprek 8", 902500),
-                PayoutItem("A", "Kebab Bang Ali", 779000),
-                PayoutItem("B", "Ketoprak Bu Joko", 703000)
-            )
-        )
-    }
-
-    var violationList by remember {
-        mutableStateOf(
-            listOf(
-                ViolationCase("v1", "Ahmad Fathan", "Kelas XI TKJ 1", "Stand A", 15000, "Belum diambil s.d 11.00 WIB (Istirahat 1)"),
-                ViolationCase("v2", "Rangga Aditya", "Kelas X DKV 3", "Stand B", 14000, "Tidak hadir di antrean kantin")
-            )
-        )
-    }
+    var standOmsetList by remember { mutableStateOf<List<StandOmset>>(emptyList()) }
+    var pendingStands by remember { mutableStateOf<List<PendingStand>>(emptyList()) }
+    var payoutList by remember { mutableStateOf<List<PayoutItem>>(emptyList()) }
+    var violationList by remember { mutableStateOf<List<ViolationCase>>(emptyList()) }
 
     val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
     val repository = remember { com.januarzidanetinendeng.eightcanteen.data.repository.CanteenRepository() }
@@ -169,21 +136,44 @@ fun AdminDashboardScreen(
         repository.getAdminRevenue().onSuccess { res ->
             // Update revenue if available from API
         }
-        repository.getAdminViolations().onSuccess { res ->
-            res.data?.let { list ->
-                if (list.isNotEmpty()) {
-                    violationList = list.map { v ->
-                        ViolationCase(
-                            id = v.id,
-                            studentName = v.studentName ?: "Siswa",
-                            studentClass = v.studentClass ?: "Kelas Siswa",
-                            standName = v.standName ?: "Stand",
-                            amount = v.amount ?: 15000,
-                            note = v.note ?: "Belum diambil saat istirahat"
-                        )
+        repository.getStands().onSuccess { res ->
+            val stands = res.data ?: emptyList()
+            if (stands.isNotEmpty()) {
+                standOmsetList = stands.mapIndexed { index, s ->
+                    val color = when (index % 4) {
+                        0 -> BluePrimary
+                        1 -> Color(0xFF16A34A)
+                        2 -> Color(0xFFF97316)
+                        else -> TextMuted
                     }
+                    StandOmset(
+                        code = s.counterSlot ?: s.standNumber ?: "${index + 1}",
+                        name = s.name,
+                        grossIncome = 0,
+                        progress = 0f,
+                        barColor = color
+                    )
                 }
+            } else {
+                standOmsetList = emptyList()
             }
+        }.onFailure {
+            standOmsetList = emptyList()
+        }
+        repository.getAdminViolations().onSuccess { res ->
+            val list = res.data ?: emptyList()
+            violationList = list.map { v ->
+                ViolationCase(
+                    id = v.id,
+                    studentName = v.studentName ?: "Siswa",
+                    studentClass = v.studentClass ?: "Kelas Siswa",
+                    standName = v.standName ?: "Stand",
+                    amount = v.amount ?: 0,
+                    note = v.note ?: "Belum diambil saat istirahat"
+                )
+            }
+        }.onFailure {
+            violationList = emptyList()
         }
     }
 
@@ -576,45 +566,54 @@ fun AdminDashboardScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // Progress Bars for Each Stand
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        standOmsetList.forEach { stand ->
-                            Column {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(6.dp)
-                                                .clip(CircleShape)
-                                                .background(stand.barColor)
+                    if (standOmsetList.isEmpty()) {
+                        Text(
+                            text = "Belum ada data omset stand mitra tenant.",
+                            fontSize = 12.sp,
+                            color = TextSecondary,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    } else {
+                        // Progress Bars for Each Stand
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            standOmsetList.forEach { stand ->
+                                Column {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .clip(CircleShape)
+                                                    .background(stand.barColor)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(text = stand.name, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                        }
+
+                                        Text(
+                                            text = "Rp ${String.format(Locale.GERMANY, "%,d", stand.grossIncome)}",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = TextPrimary
                                         )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(text = stand.name, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                                     }
 
-                                    Text(
-                                        text = "Rp ${String.format(Locale.GERMANY, "%,d", stand.grossIncome)}",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = TextPrimary
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    LinearProgressIndicator(
+                                        progress = { stand.progress },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(7.dp)
+                                            .clip(RoundedCornerShape(4.dp)),
+                                        color = stand.barColor,
+                                        trackColor = InputBg
                                     )
                                 }
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                LinearProgressIndicator(
-                                    progress = { stand.progress },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(7.dp)
-                                        .clip(RoundedCornerShape(4.dp)),
-                                    color = stand.barColor,
-                                    trackColor = InputBg
-                                )
                             }
                         }
                     }
@@ -653,67 +652,76 @@ fun AdminDashboardScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        payoutList.forEachIndexed { index, payout ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(InputBg)
-                                    .padding(12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .clip(CircleShape)
-                                            .background(BlueLightCard),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(text = payout.code, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
-                                    }
-
-                                    Spacer(modifier = Modifier.width(10.dp))
-
-                                    Column {
-                                        Text(text = payout.standName, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                                        Text(
-                                            text = "Net: Rp ${String.format(Locale.GERMANY, "%,d", payout.netAmount)}",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = BluePrimary
-                                        )
-                                    }
-                                }
-
-                                Button(
-                                    onClick = {
-                                        val updated = payoutList.toMutableList()
-                                        updated[index] = payout.copy(isDisbursed = true)
-                                        payoutList = updated
-                                        coroutineScope.launch {
-                                            repository.getAdminStandRevenue(payout.code)
-                                        }
-                                        Toast.makeText(context, "Pencairan Net Rp ${payout.netAmount} ke ${payout.standName} Berhasil!", Toast.LENGTH_SHORT).show()
-                                    },
-                                    enabled = !payout.isDisbursed,
-                                    shape = RoundedCornerShape(14.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = BluePrimary,
-                                        disabledContainerColor = Color(0xFFDCFCE7),
-                                        disabledContentColor = Color(0xFF16A34A)
-                                    ),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                    modifier = Modifier.height(34.dp)
+                    if (payoutList.isEmpty()) {
+                        Text(
+                            text = "Belum ada antrean pencairan dana penjual.",
+                            fontSize = 12.sp,
+                            color = TextSecondary,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            payoutList.forEachIndexed { index, payout ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(InputBg)
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = if (payout.isDisbursed) "✓ Cair" else "💵 Cairkan",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .clip(CircleShape)
+                                                .background(BlueLightCard),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(text = payout.code, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
+                                        }
+
+                                        Spacer(modifier = Modifier.width(10.dp))
+
+                                        Column {
+                                            Text(text = payout.standName, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                            Text(
+                                                text = "Net: Rp ${String.format(Locale.GERMANY, "%,d", payout.netAmount)}",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = BluePrimary
+                                            )
+                                        }
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            val updated = payoutList.toMutableList()
+                                            updated[index] = payout.copy(isDisbursed = true)
+                                            payoutList = updated
+                                            coroutineScope.launch {
+                                                repository.getAdminStandRevenue(payout.code)
+                                            }
+                                            Toast.makeText(context, "Pencairan Net Rp ${payout.netAmount} ke ${payout.standName} Berhasil!", Toast.LENGTH_SHORT).show()
+                                        },
+                                        enabled = !payout.isDisbursed,
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = BluePrimary,
+                                            disabledContainerColor = Color(0xFFDCFCE7),
+                                            disabledContentColor = Color(0xFF16A34A)
+                                        ),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                        modifier = Modifier.height(34.dp)
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = if (payout.isDisbursed) "✓ Cair" else "💵 Cairkan",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -768,75 +776,84 @@ fun AdminDashboardScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Violation Cases List
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        violationList.forEachIndexed { index, v ->
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
-                                border = BorderStroke(1.dp, Color(0xFFFECACA))
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(text = v.studentName, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                                        Text(
-                                            text = "Rp ${String.format(Locale.GERMANY, "%,d", v.amount)}",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFFDC2626)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(2.dp))
-
-                                    Text(
-                                        text = "${v.studentClass} • ${v.standName}",
-                                        fontSize = 11.sp,
-                                        color = TextSecondary
-                                    )
-
-                                    Spacer(modifier = Modifier.height(2.dp))
-
-                                    Text(
-                                        text = "⏱️ ${v.note}",
-                                        fontSize = 10.sp,
-                                        color = TextMuted
-                                    )
-
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    Button(
-                                        onClick = {
-                                            val updated = violationList.toMutableList()
-                                            updated[index] = v.copy(isWarned = true)
-                                            violationList = updated
-                                            coroutineScope.launch {
-                                                repository.addViolation(userId = v.id, points = 5, note = v.note)
-                                            }
-                                            Toast.makeText(context, "Teguran & Poin Pelanggaran Dikirim ke ${v.studentName}!", Toast.LENGTH_SHORT).show()
-                                        },
-                                        enabled = !v.isWarned,
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Color(0xFFDC2626),
-                                            disabledContainerColor = Color(0xFFDCFCE7),
-                                            disabledContentColor = Color(0xFF16A34A)
-                                        ),
-                                        modifier = Modifier.fillMaxWidth().height(36.dp)
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(imageVector = Icons.Default.Warning, contentDescription = "Warn", modifier = Modifier.size(14.dp))
-                                            Spacer(modifier = Modifier.width(6.dp))
+                    if (violationList.isEmpty()) {
+                        Text(
+                            text = "Tidak ada kasus pesanan tunai hangus saat ini.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF991B1B),
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    } else {
+                        // Violation Cases List
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            violationList.forEachIndexed { index, v ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                                    border = BorderStroke(1.dp, Color(0xFFFECACA))
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(text = v.studentName, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                                             Text(
-                                                text = if (v.isWarned) "✓ Teguran Terkirim" else "Kirim Teguran / Poin Pelanggaran",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold
+                                                text = "Rp ${String.format(Locale.GERMANY, "%,d", v.amount)}",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFFDC2626)
                                             )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(2.dp))
+
+                                        Text(
+                                            text = "${v.studentClass} • ${v.standName}",
+                                            fontSize = 11.sp,
+                                            color = TextSecondary
+                                        )
+
+                                        Spacer(modifier = Modifier.height(2.dp))
+
+                                        Text(
+                                            text = "⏱️ ${v.note}",
+                                            fontSize = 10.sp,
+                                            color = TextMuted
+                                        )
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        Button(
+                                            onClick = {
+                                                val updated = violationList.toMutableList()
+                                                updated[index] = v.copy(isWarned = true)
+                                                violationList = updated
+                                                coroutineScope.launch {
+                                                    repository.addViolation(userId = v.id, points = 5, note = v.note)
+                                                }
+                                                Toast.makeText(context, "Teguran & Poin Pelanggaran Dikirim ke ${v.studentName}!", Toast.LENGTH_SHORT).show()
+                                            },
+                                            enabled = !v.isWarned,
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFFDC2626),
+                                                disabledContainerColor = Color(0xFFDCFCE7),
+                                                disabledContentColor = Color(0xFF16A34A)
+                                            ),
+                                            modifier = Modifier.fillMaxWidth().height(36.dp)
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(imageVector = Icons.Default.Warning, contentDescription = "Warn", modifier = Modifier.size(14.dp))
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = if (v.isWarned) "✓ Teguran Terkirim" else "Kirim Teguran / Poin Pelanggaran",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
                                         }
                                     }
                                 }

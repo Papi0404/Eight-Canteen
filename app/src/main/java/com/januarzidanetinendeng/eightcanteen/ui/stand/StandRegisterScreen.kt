@@ -83,7 +83,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun StandRegisterScreen(
     onBackClick: () -> Unit = {},
-    onRegisterSuccess: (String, String) -> Unit = { _, _ -> }
+    onRegisterSuccess: (standName: String, ownerName: String, counterSlot: String) -> Unit = { _, _, _ -> }
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -736,10 +736,9 @@ fun StandRegisterScreen(
                         result.onSuccess { response ->
                             val msg = response.message ?: "Pendaftaran Stand $standName Berhasil Dikirim ke Koperasi!"
                             Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-                            onRegisterSuccess(standName, ownerName)
+                            onRegisterSuccess(standName, ownerName, counterSlot)
                         }.onFailure { e ->
-                            Toast.makeText(context, "Respon Server: ${e.message}", Toast.LENGTH_SHORT).show()
-                            onRegisterSuccess(standName, ownerName)
+                            Toast.makeText(context, "Pendaftaran Gagal: ${e.message ?: "Koneksi ke backend bermasalah"}", Toast.LENGTH_LONG).show()
                         }
                     }
                 },

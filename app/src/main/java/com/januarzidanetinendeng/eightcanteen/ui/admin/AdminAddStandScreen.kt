@@ -93,10 +93,10 @@ fun AdminAddStandScreen(
     val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
-    var ownerName by remember { mutableStateOf("Pak Budi Santoso") }
-    var standName by remember { mutableStateOf("Ketoprak Bu Joko") }
-    var sellerPhoneNumber by remember { mutableStateOf("813-8899-7700") }
-    var counterPosition by remember { mutableStateOf("Stand 01 (Gedung C - Area Tengah Utama)") }
+    var ownerName by remember { mutableStateOf("") }
+    var standName by remember { mutableStateOf("") }
+    var sellerPhoneNumber by remember { mutableStateOf("") }
+    var counterPosition by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Makanan") }
     var isAccountActive by remember { mutableStateOf(true) }
 
@@ -845,7 +845,7 @@ fun AdminAddStandScreen(
                                 Text(text = "🟡", fontSize = 11.sp)
                             }
                             Text(
-                                text = "${counterPosition.take(12)} • Gedung C",
+                                text = if (counterPosition.isNotBlank()) counterPosition else "Lokasi Stand Kantin",
                                 fontSize = 11.sp,
                                 color = TextSecondary
                             )

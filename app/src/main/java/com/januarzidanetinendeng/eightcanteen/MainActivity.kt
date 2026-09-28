@@ -357,9 +357,9 @@ fun MainAppNavigation(
                 onBackClick = {
                     currentScreen = ScreenState.LOGIN
                 },
-                onRegisterSuccess = { stand, owner ->
+                onRegisterSuccess = { stand, owner, counterSlot ->
                     sellerStandName = stand
-                    sellerCounterSlot = "Stand 04"
+                    sellerCounterSlot = counterSlot
                     val session = SessionManager.getInstance(context)
                     session.saveUser(
                         id = session.getUserId() ?: "",
@@ -369,7 +369,7 @@ fun MainAppNavigation(
                         standId = session.getStandId(),
                         points = 0,
                         standName = stand,
-                        counterSlot = "Stand 04"
+                        counterSlot = counterSlot
                     )
                     currentScreen = ScreenState.SELLER_DASHBOARD
                 }

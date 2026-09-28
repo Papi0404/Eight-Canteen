@@ -81,7 +81,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun StudentRegisterScreen(
-    verifiedPhoneNumber: String = "812-3456-7890",
+    verifiedPhoneNumber: String = "",
     onBackClick: () -> Unit = {},
     onRegisterSuccess: (String, String) -> Unit = { _, _ -> }
 ) {

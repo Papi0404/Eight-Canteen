@@ -2,6 +2,7 @@ package com.januarzidanetinendeng.eightcanteen.data.repository
 
 import com.google.gson.Gson
 import com.januarzidanetinendeng.eightcanteen.data.remote.*
+import okhttp3.MultipartBody
 import retrofit2.HttpException
 
 class ApiException(val statusCode: Int, override val message: String) : Exception(message)
@@ -154,12 +155,42 @@ class CanteenRepository(
         api.getMyMenus()
     }
 
-    suspend fun createMenu(standId: String?, name: String, price: Int, stock: Int, imageUrl: String? = null): Result<BaseResponse<MenuResponse>> = safeApiCall {
-        api.createMenu(CreateMenuRequest(standId = standId, name = name, price = price, stock = stock, image = imageUrl))
+    suspend fun uploadMenuImage(imagePart: MultipartBody.Part): Result<BaseResponse<UploadImageResponse>> = safeApiCall {
+        api.uploadMenuImage(imagePart)
     }
 
-    suspend fun updateMenu(menuId: String, name: String? = null, price: Int? = null, stock: Int? = null, isAvailable: Boolean? = null): Result<BaseResponse<MenuResponse>> = safeApiCall {
-        api.updateMenu(menuId, UpdateMenuRequest(name = name, price = price, stock = stock, isAvailable = isAvailable))
+    suspend fun createMenu(standId: String?, name: String, price: Int, stock: Int, imageUrl: String? = null): Result<BaseResponse<MenuResponse>> = safeApiCall {
+        api.createMenu(CreateMenuRequest(standId = standId, name = name, price = price, stock = stock, image = imageUrl, imageUrl = imageUrl))
+    }
+
+    suspend fun updateMenuImage(menuId: String, imagePart: MultipartBody.Part): Result<BaseResponse<MenuResponse>> = safeApiCall {
+        api.updateMenuImage(menuId, imagePart)
+    }
+
+    suspend fun deleteMenuImage(menuId: String): Result<BaseResponse<MenuResponse>> = safeApiCall {
+        api.deleteMenuImage(menuId)
+    }
+
+    suspend fun updateMenu(
+        menuId: String,
+        name: String? = null,
+        price: Int? = null,
+        stock: Int? = null,
+        isAvailable: Boolean? = null,
+        imageUrl: String? = null
+    ): Result<BaseResponse<MenuResponse>> = safeApiCall {
+        api.updateMenu(
+            menuId,
+            UpdateMenuRequest(
+                name = name,
+                price = price,
+                stock = stock,
+                isAvailable = isAvailable,
+                is_available = isAvailable,
+                imageUrl = imageUrl,
+                image = imageUrl
+            )
+        )
     }
 
     suspend fun updateMenuStock(menuId: String, stock: Int): Result<BaseResponse<MenuResponse>> = safeApiCall {
@@ -171,7 +202,7 @@ class CanteenRepository(
     }
 
     suspend fun createOrder(standId: String, items: List<OrderItemRequest>, paymentMethod: String, usePoints: Boolean = false, note: String? = null): Result<BaseResponse<OrderResponse>> = safeApiCall {
-        val req = CreateOrderRequest(standId = standId, items = items, paymentMethod = paymentMethod, usePoints = usePoints, note = note)
+        val req = CreateOrderRequest(standId = standId, items = items, paymentMethod = paymentMethod, usePoints = usePoints, note = note, notes = note)
         try {
             api.createOrder(req)
         } catch (e: HttpException) {
@@ -197,6 +228,14 @@ class CanteenRepository(
 
     suspend fun updateOrderStatus(orderId: String, status: String): Result<BaseResponse<OrderResponse>> = safeApiCall {
         api.updateOrderStatus(orderId, UpdateOrderStatusRequest(status = status))
+    }
+
+    suspend fun cancelOrder(orderId: String): Result<BaseResponse<OrderResponse>> = safeApiCall {
+        try {
+            api.cancelOrder(orderId)
+        } catch (e: Exception) {
+            api.updateOrderStatus(orderId, UpdateOrderStatusRequest(status = "CANCELLED"))
+        }
     }
 
     suspend fun getSellerRevenue(): Result<BaseResponse<SellerRevenueResponse>> = safeApiCall {

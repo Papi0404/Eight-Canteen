@@ -88,6 +88,7 @@ dependencies {
     implementation("androidx.camera:camera-view:${camerax_version}")
     implementation("com.google.guava:guava:31.1-android")
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
+    implementation("com.google.zxing:core:3.5.3")
 
     // Networking
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
@@ -96,6 +97,9 @@ dependencies {
     
     // ViewModel Compose
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
+
+    // Image Loading (Coil)
+    implementation("io.coil-kt:coil-compose:2.6.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

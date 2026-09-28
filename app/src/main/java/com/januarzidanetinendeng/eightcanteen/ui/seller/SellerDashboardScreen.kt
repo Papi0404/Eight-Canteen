@@ -1,6 +1,9 @@
 package com.januarzidanetinendeng.eightcanteen.ui.seller
 
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -20,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -42,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -49,9 +54,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.januarzidanetinendeng.eightcanteen.data.local.SessionManager
 import com.januarzidanetinendeng.eightcanteen.data.remote.OrderResponse
 import com.januarzidanetinendeng.eightcanteen.data.repository.CanteenRepository
+import com.januarzidanetinendeng.eightcanteen.data.util.ImageUploadHelper
 import com.januarzidanetinendeng.eightcanteen.ui.components.EKantinLogoIcon
 import com.januarzidanetinendeng.eightcanteen.ui.components.ShieldCheckIcon
 import com.januarzidanetinendeng.eightcanteen.ui.theme.BlueChipBg
@@ -73,7 +81,8 @@ data class SellerMenuItem(
     val price: Int,
     var stock: Int,
     var isAvailable: Boolean,
-    val foodEmoji: String
+    val foodEmoji: String,
+    val imageUrl: String? = null
 )
 
 fun determineFoodEmoji(name: String): String {
@@ -146,16 +155,52 @@ fun SellerDashboardScreen(
     var newMenuName by remember { mutableStateOf("") }
     var newMenuPrice by remember { mutableStateOf("") }
     var newMenuStock by remember { mutableStateOf("10") }
+    var newMenuImageUri by remember { mutableStateOf<Uri?>(null) }
     var isSavingNewMenu by remember { mutableStateOf(false) }
 
     var editingMenuItem by remember { mutableStateOf<SellerMenuItem?>(null) }
     var editMenuName by remember { mutableStateOf("") }
     var editMenuPrice by remember { mutableStateOf("") }
     var editMenuStock by remember { mutableStateOf("") }
+    var editMenuImageUri by remember { mutableStateOf<Uri?>(null) }
+    var editMenuRemoveExistingPhoto by remember { mutableStateOf(false) }
     var isSavingEditMenu by remember { mutableStateOf(false) }
 
     var deletingMenuItem by remember { mutableStateOf<SellerMenuItem?>(null) }
     var isDeletingMenu by remember { mutableStateOf(false) }
+
+    val addImagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            if (!ImageUploadHelper.isAllowedImageFormat(context, it)) {
+                Toast.makeText(
+                    context,
+                    "Format foto tidak didukung! Hanya JPG, JPEG, PNG, atau WEBP yang diperbolehkan.",
+                    Toast.LENGTH_LONG
+                ).show()
+            } else {
+                newMenuImageUri = it
+            }
+        }
+    }
+
+    val editImagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            if (!ImageUploadHelper.isAllowedImageFormat(context, it)) {
+                Toast.makeText(
+                    context,
+                    "Format foto tidak didukung! Hanya JPG, JPEG, PNG, atau WEBP yang diperbolehkan.",
+                    Toast.LENGTH_LONG
+                ).show()
+            } else {
+                editMenuImageUri = it
+                editMenuRemoveExistingPhoto = false
+            }
+        }
+    }
 
     val repository = remember { CanteenRepository() }
 
@@ -202,7 +247,8 @@ fun SellerDashboardScreen(
                         price = menu.price,
                         stock = menu.stock,
                         isAvailable = menu.isAvailable && menu.stock > 0,
-                        foodEmoji = determineFoodEmoji(menu.name)
+                        foodEmoji = determineFoodEmoji(menu.name),
+                        imageUrl = menu.imageUrl
                     )
                 }
             }.onFailure { err ->
@@ -218,7 +264,8 @@ fun SellerDashboardScreen(
                                 price = menu.price,
                                 stock = menu.stock,
                                 isAvailable = menu.isAvailable && menu.stock > 0,
-                                foodEmoji = determineFoodEmoji(menu.name)
+                                foodEmoji = determineFoodEmoji(menu.name),
+                                imageUrl = menu.imageUrl
                             )
                         }
                     }.onFailure { err2 ->
@@ -373,6 +420,7 @@ fun SellerDashboardScreen(
                         newMenuName = ""
                         newMenuPrice = ""
                         newMenuStock = "10"
+                        newMenuImageUri = null
                         showAddMenuDialog = true
                     },
                     icon = { Icon(imageVector = Icons.Default.ShoppingBag, contentDescription = "Tambah Menu") },
@@ -606,25 +654,82 @@ fun SellerDashboardScreen(
                                         color = BorderColor
                                     )
 
-                                    // Items List
+                                    // Items List with Notes
                                     order.orderItems.forEach { item ->
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text(
-                                                text = "${item.quantity}x ${item.name}",
-                                                fontSize = 12.sp,
-                                                color = TextPrimary
-                                            )
-                                            Text(
-                                                text = "Rp ${String.format(Locale.GERMANY, "%,d", item.price * item.quantity)}",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = TextPrimary
-                                            )
+                                        Column(modifier = Modifier.fillMaxWidth()) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "${item.quantity}x ${item.name}",
+                                                    fontSize = 12.5.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = TextPrimary
+                                                )
+                                                Text(
+                                                    text = "Rp ${String.format(Locale.GERMANY, "%,d", item.price * item.quantity)}",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = TextPrimary
+                                                )
+                                            }
+
+                                            // Note per menu item
+                                            if (!item.note.isNullOrBlank()) {
+                                                Spacer(modifier = Modifier.height(3.dp))
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(Color(0xFFFEF3C7))
+                                                        .border(0.8.dp, Color(0xFFFDE68A), RoundedCornerShape(6.dp))
+                                                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Text(text = "📝 ", fontSize = 11.sp)
+                                                    Text(
+                                                        text = "Catatan: ${item.note}",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = Color(0xFF92400E)
+                                                    )
+                                                }
+                                            }
                                         }
-                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                    }
+
+                                    // Order-level general note
+                                    if (!order.note.isNullOrBlank()) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(Color(0xFFF0FDF4))
+                                                .border(1.dp, Color(0xFFBBF7D0), RoundedCornerShape(8.dp))
+                                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                        ) {
+                                            Row(verticalAlignment = Alignment.Top) {
+                                                Text(text = "📌 ", fontSize = 12.sp)
+                                                Column {
+                                                    Text(
+                                                        text = "Catatan Pesanan:",
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF166534)
+                                                    )
+                                                    Text(
+                                                        text = order.note ?: "",
+                                                        fontSize = 11.5.sp,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = Color(0xFF15803D)
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
 
                                     Spacer(modifier = Modifier.height(6.dp))
@@ -1223,6 +1328,7 @@ fun SellerDashboardScreen(
                             newMenuName = ""
                             newMenuPrice = ""
                             newMenuStock = "10"
+                            newMenuImageUri = null
                             showAddMenuDialog = true
                         },
                         shape = RoundedCornerShape(12.dp),
@@ -1354,13 +1460,25 @@ fun SellerDashboardScreen(
                                             .background(if (menu.isAvailable) Color(0xFFFEF3C7) else Color(0xFFE2E8F0)),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(text = menu.foodEmoji, fontSize = 28.sp)
+                                        if (!menu.imageUrl.isNullOrBlank()) {
+                                            AsyncImage(
+                                                model = ImageRequest.Builder(context)
+                                                    .data(menu.imageUrl)
+                                                    .crossfade(true)
+                                                    .build(),
+                                                contentDescription = menu.name,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        } else {
+                                            Text(text = menu.foodEmoji, fontSize = 28.sp)
+                                        }
 
                                         if (!menu.isAvailable) {
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxSize()
-                                                    .background(Color.Black.copy(alpha = 0.4f)),
+                                                    .background(Color.Black.copy(alpha = 0.5f)),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text(text = "HABIS", fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
@@ -1417,6 +1535,8 @@ fun SellerDashboardScreen(
                                                 editMenuName = menu.name
                                                 editMenuPrice = menu.price.toString()
                                                 editMenuStock = menu.stock.toString()
+                                                editMenuImageUri = null
+                                                editMenuRemoveExistingPhoto = false
                                             },
                                             modifier = Modifier.size(28.dp)
                                         ) {
@@ -1496,10 +1616,21 @@ fun SellerDashboardScreen(
                                         onCheckedChange = { checked ->
                                             val updated = menuList.toMutableList()
                                             val updatedStock = if (checked && menu.stock == 0) 5 else menu.stock
+                                            val previousMenu = menu
                                             updated[index] = menu.copy(isAvailable = checked, stock = updatedStock)
                                             menuList = updated
                                             coroutineScope.launch {
-                                                repository.updateMenu(menu.id, isAvailable = checked, stock = updatedStock)
+                                                repository.updateMenu(menu.id, isAvailable = checked, stock = updatedStock).onSuccess {
+                                                    Toast.makeText(context, "${menu.name} sekarang ${if (checked) "tersedia" else "tidak tersedia"}", Toast.LENGTH_SHORT).show()
+                                                }.onFailure { err ->
+                                                    val rolled = menuList.toMutableList()
+                                                    val foundIdx = rolled.indexOfFirst { it.id == previousMenu.id }
+                                                    if (foundIdx != -1) {
+                                                        rolled[foundIdx] = previousMenu
+                                                        menuList = rolled
+                                                    }
+                                                    Toast.makeText(context, "Gagal mengubah status: ${err.message}", Toast.LENGTH_SHORT).show()
+                                                }
                                             }
                                         },
                                         colors = SwitchDefaults.colors(
@@ -1683,12 +1814,100 @@ fun SellerDashboardScreen(
                 )
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     Text(
                         text = "Masukkan detail menu makanan/minuman yang akan dijual:",
                         fontSize = 12.sp,
                         color = TextSecondary
                     )
+
+                    // Photo Upload Section
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(InputBg)
+                            .border(1.dp, BorderColor, RoundedCornerShape(12.dp))
+                            .padding(10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        if (newMenuImageUri != null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(130.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                            ) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context)
+                                        .data(newMenuImageUri)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = "Preview Foto Menu",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+
+                                IconButton(
+                                    onClick = { newMenuImageUri = null },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(6.dp)
+                                        .size(26.dp)
+                                        .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Hapus Foto",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            OutlinedButton(
+                                onClick = { addImagePickerLauncher.launch("image/*") },
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = "Ganti Foto", modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Ganti Foto (JPG, PNG, WEBP)", fontSize = 12.sp)
+                            }
+                        } else {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { addImagePickerLauncher.launch("image/*") }
+                                    .padding(vertical = 14.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AddPhotoAlternate,
+                                    contentDescription = "Upload Foto",
+                                    tint = BluePrimary,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Upload Foto Produk (Opsional)",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = BluePrimary
+                                )
+                                Text(
+                                    text = "Hanya format JPG, JPEG, PNG, WEBP (Maks 5MB)",
+                                    fontSize = 10.sp,
+                                    color = TextSecondary
+                                )
+                            }
+                        }
+                    }
 
                     OutlinedTextField(
                         value = newMenuName,
@@ -1753,11 +1972,29 @@ fun SellerDashboardScreen(
 
                         coroutineScope.launch {
                             isSavingNewMenu = true
+                            var uploadedImageUrl: String? = null
+
+                            // Upload photo if chosen
+                            if (newMenuImageUri != null) {
+                                val part = ImageUploadHelper.uriToMultipartPart(context, newMenuImageUri!!, "image")
+                                if (part != null) {
+                                    val uploadResult = repository.uploadMenuImage(part)
+                                    uploadResult.onSuccess { res ->
+                                        uploadedImageUrl = res.data?.imageUrl ?: res.data?.image_url
+                                    }.onFailure { err ->
+                                        isSavingNewMenu = false
+                                        Toast.makeText(context, "Gagal mengupload foto: ${err.message ?: "Format salah / ukuran terlalu besar"}", Toast.LENGTH_LONG).show()
+                                        return@launch
+                                    }
+                                }
+                            }
+
                             val result = repository.createMenu(
                                 standId = null,
                                 name = newMenuName.trim(),
                                 price = priceInt,
-                                stock = stockInt
+                                stock = stockInt,
+                                imageUrl = uploadedImageUrl
                             )
                             isSavingNewMenu = false
                             result.onSuccess { res ->
@@ -1769,13 +2006,15 @@ fun SellerDashboardScreen(
                                         price = created.price,
                                         stock = created.stock,
                                         isAvailable = (created.stock > 0) && created.isAvailable,
-                                        foodEmoji = determineFoodEmoji(created.name)
+                                        foodEmoji = determineFoodEmoji(created.name),
+                                        imageUrl = created.imageUrl ?: uploadedImageUrl
                                     )
                                     menuList = listOf(newItem) + menuList
                                 } else {
                                     refreshAllSellerData()
                                 }
                                 showAddMenuDialog = false
+                                newMenuImageUri = null
                                 Toast.makeText(context, "Menu '${newMenuName.trim()}' Berhasil Ditambahkan ke Server!", Toast.LENGTH_SHORT).show()
                             }.onFailure { e ->
                                 Toast.makeText(context, "Gagal menambahkan menu ke server: ${e.message ?: "Terjadi kesalahan"}", Toast.LENGTH_LONG).show()
@@ -1808,7 +2047,7 @@ fun SellerDashboardScreen(
     }
 
     // ==========================================
-    // DIALOG 3: EDIT MENU (NAMA, HARGA, STOK)
+    // DIALOG 3: EDIT MENU (NAMA, HARGA, STOK & CRUD FOTO)
     // ==========================================
     editingMenuItem?.let { item ->
         AlertDialog(
@@ -1822,12 +2061,181 @@ fun SellerDashboardScreen(
                 )
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     Text(
-                        text = "Ubah nama, harga, atau stok menu:",
+                        text = "Kelola foto, nama, harga, atau stok menu:",
                         fontSize = 12.sp,
                         color = TextSecondary
                     )
+
+                    // Photo CRUD Section
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(InputBg)
+                            .border(1.dp, BorderColor, RoundedCornerShape(12.dp))
+                            .padding(10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        when {
+                            // 1. User selected a new photo to replace
+                            editMenuImageUri != null -> {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(130.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                ) {
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(context)
+                                            .data(editMenuImageUri)
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = "Foto Baru",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+
+                                    IconButton(
+                                        onClick = { editMenuImageUri = null },
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(6.dp)
+                                            .size(26.dp)
+                                            .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                                    ) {
+                                        Icon(imageVector = Icons.Default.Close, contentDescription = "Batal", tint = Color.White, modifier = Modifier.size(14.dp))
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Foto baru siap diunggah",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = BluePrimary
+                                    )
+
+                                    TextButton(onClick = { editMenuImageUri = null }) {
+                                        Text("Batalkan Ganti", fontSize = 11.sp, color = Color(0xFFDC2626))
+                                    }
+                                }
+                            }
+
+                            // 2. User clicked "Hapus Foto"
+                            editMenuRemoveExistingPhoto -> {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(80.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color(0xFFFEE2E2)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(text = "🗑️ Foto akan dihapus dari server", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFFDC2626))
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        OutlinedButton(
+                                            onClick = { editMenuRemoveExistingPhoto = false },
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = BluePrimary)
+                                        ) {
+                                            Text("Batalkan Hapus Foto", fontSize = 11.sp)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 3. Existing photo exists
+                            !item.imageUrl.isNullOrBlank() -> {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(130.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                ) {
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(context)
+                                            .data(item.imageUrl)
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = item.name,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    OutlinedButton(
+                                        onClick = { editImagePickerLauncher.launch("image/*") },
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = "Ganti Foto", modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Ganti Foto", fontSize = 11.sp)
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = { editMenuRemoveExistingPhoto = true },
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFDC2626)),
+                                        border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(imageVector = Icons.Default.DeleteOutline, contentDescription = "Hapus Foto", modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Hapus Foto", fontSize = 11.sp)
+                                    }
+                                }
+                            }
+
+                            // 4. No photo yet
+                            else -> {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { editImagePickerLauncher.launch("image/*") }
+                                        .padding(vertical = 14.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AddPhotoAlternate,
+                                        contentDescription = "Upload Foto",
+                                        tint = BluePrimary,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "+ Upload Foto Produk",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = BluePrimary
+                                    )
+                                    Text(
+                                        text = "Hanya format JPG, JPEG, PNG, WEBP (Maks 5MB)",
+                                        fontSize = 10.sp,
+                                        color = TextSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
 
                     OutlinedTextField(
                         value = editMenuName,
@@ -1889,12 +2297,38 @@ fun SellerDashboardScreen(
 
                         coroutineScope.launch {
                             isSavingEditMenu = true
+                            var currentImageUrl = item.imageUrl
+
+                            // 1. Handle Photo Delete if user requested
+                            if (editMenuRemoveExistingPhoto && !item.imageUrl.isNullOrBlank()) {
+                                repository.deleteMenuImage(item.id).onSuccess {
+                                    currentImageUrl = null
+                                }.onFailure { err ->
+                                    Toast.makeText(context, "Gagal menghapus foto dari storage: ${err.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+
+                            // 2. Handle Photo Update if user selected new photo
+                            if (editMenuImageUri != null) {
+                                val part = ImageUploadHelper.uriToMultipartPart(context, editMenuImageUri!!, "image")
+                                if (part != null) {
+                                    val uploadRes = repository.updateMenuImage(item.id, part)
+                                    uploadRes.onSuccess { res ->
+                                        currentImageUrl = res.data?.imageUrl ?: currentImageUrl
+                                    }.onFailure { err ->
+                                        Toast.makeText(context, "Gagal mengupdate foto: ${err.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+
+                            // 3. Update menu in server database
                             val result = repository.updateMenu(
                                 menuId = item.id,
                                 name = editMenuName.trim(),
                                 price = priceInt,
                                 stock = stockInt,
-                                isAvailable = stockInt > 0
+                                isAvailable = stockInt > 0,
+                                imageUrl = currentImageUrl
                             )
                             isSavingEditMenu = false
 
@@ -1906,11 +2340,14 @@ fun SellerDashboardScreen(
                                             price = priceInt,
                                             stock = stockInt,
                                             isAvailable = stockInt > 0,
-                                            foodEmoji = determineFoodEmoji(editMenuName.trim())
+                                            foodEmoji = determineFoodEmoji(editMenuName.trim()),
+                                            imageUrl = currentImageUrl
                                         )
                                     } else m
                                 }
                                 editingMenuItem = null
+                                editMenuImageUri = null
+                                editMenuRemoveExistingPhoto = false
                                 Toast.makeText(context, "Menu Berhasil Diperbarui di Database!", Toast.LENGTH_SHORT).show()
                             }.onFailure { err ->
                                 Toast.makeText(context, "Gagal memperbarui menu: ${err.message ?: "Terjadi kesalahan"}", Toast.LENGTH_LONG).show()
@@ -1930,7 +2367,11 @@ fun SellerDashboardScreen(
             },
             dismissButton = {
                 OutlinedButton(
-                    onClick = { editingMenuItem = null },
+                    onClick = {
+                        editingMenuItem = null
+                        editMenuImageUri = null
+                        editMenuRemoveExistingPhoto = false
+                    },
                     shape = RoundedCornerShape(12.dp),
                     enabled = !isSavingEditMenu
                 ) {

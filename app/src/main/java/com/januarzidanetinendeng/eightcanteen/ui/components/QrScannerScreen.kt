@@ -13,6 +13,12 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,6 +37,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -70,6 +77,17 @@ fun QrScannerScreen(
 
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
     val barcodeScanner = remember { BarcodeScanning.getClient() }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "scanner_laser")
+    val laserFraction by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2200, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "laser_y"
+    )
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -260,33 +278,46 @@ fun QrScannerScreen(
             Box(
                 modifier = Modifier
                     .size(260.dp)
-                    .border(3.5.dp, BluePrimary, RoundedCornerShape(28.dp))
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(Color.Transparent),
-                contentAlignment = Alignment.Center
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color.White.copy(alpha = 0.05f))
+                    .border(3.dp, BluePrimary, RoundedCornerShape(24.dp)),
+                contentAlignment = Alignment.TopCenter
             ) {
-                // Scanning Line Indicator or Crosshair
+                // Moving Laser Scan Line
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(0.85f)
-                        .height(2.dp)
-                        .background(Color.White.copy(alpha = 0.7f))
+                        .fillMaxWidth(0.9f)
+                        .padding(top = (210.dp * laserFraction) + 12.dp)
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color(0xFF38BDF8),
+                                    Color.White,
+                                    Color(0xFF38BDF8),
+                                    Color.Transparent
+                                )
+                            )
+                        )
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Posisikan kode QR siswa di dalam bingkai",
+                text = "Posisikan kode QR atau barcode tiket siswa di dalam bingkai",
                 color = Color.White.copy(alpha = 0.85f),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 24.dp)
             )
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Footer with Manual Input Option & Quick Simulation fallback
+            // Footer with Manual Input Option
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -294,37 +325,29 @@ fun QrScannerScreen(
                     .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                // Manual Order Input Button
+                OutlinedButton(
+                    onClick = { showManualInputDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.6f))
                 ) {
-                    // Manual Order Input Button
-                    OutlinedButton(
-                        onClick = { showManualInputDialog = true },
-                        modifier = Modifier.weight(1f).height(48.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.5f))
-                    ) {
-                        Icon(imageVector = Icons.Default.Keyboard, contentDescription = "Manual", modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Ketik Kode", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    }
-
-                    // Direct Demo / Test Button
-                    Button(
-                        onClick = {
-                            isScanningActive = false
-                            onScanSuccess("ORD-DEMO-01")
-                        },
-                        modifier = Modifier.weight(1f).height(48.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
-                    ) {
-                        Icon(imageVector = Icons.Default.QrCodeScanner, contentDescription = "Scan", modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Simulasi Scan", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Keyboard,
+                        contentDescription = "Manual",
+                        modifier = Modifier.size(20.dp),
+                        tint = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Ketik Kode Pesanan Manual",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
                 }
             }
         }

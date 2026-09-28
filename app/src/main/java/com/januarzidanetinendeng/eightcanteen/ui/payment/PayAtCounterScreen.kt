@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import com.januarzidanetinendeng.eightcanteen.ui.checkout.CartViewModel
 import com.januarzidanetinendeng.eightcanteen.ui.checkout.formatRupiah
 import com.januarzidanetinendeng.eightcanteen.ui.components.EKantinLogoIcon
+import com.januarzidanetinendeng.eightcanteen.ui.components.OrderBarcodeSection
 import com.januarzidanetinendeng.eightcanteen.ui.theme.EightCanteenTheme
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -72,6 +73,8 @@ import java.util.Locale
 
 @Composable
 fun PayAtCounterScreen(
+    orderId: String? = null,
+    orderNumber: String? = null,
     viewModel: CartViewModel = remember { CartViewModel() },
     onBackClick: () -> Unit = {},
     onConfirmCashPayment: () -> Unit = {},
@@ -81,6 +84,7 @@ fun PayAtCounterScreen(
     val context = LocalContext.current
 
     val standNameDisplay = state.cartItems.firstOrNull()?.standName ?: state.standInfo
+    val displayCode = orderNumber?.takeIf { it.isNotBlank() } ?: (orderId?.takeIf { it.isNotBlank() } ?: "-")
 
     // 15 Minutes Countdown Timer (900 seconds)
     var remainingSeconds by remember { mutableIntStateOf(900) }
@@ -119,7 +123,7 @@ fun PayAtCounterScreen(
                 onHelpClick = {
                     Toast.makeText(
                         context,
-                        "Bawa uang pas ke Stand 04 saat waktu istirahat sekolah untuk mengambil pesanan Anda.",
+                        "Bawa uang pas ke ${standNameDisplay.ifBlank { "Stand Kantin" }} saat waktu istirahat sekolah untuk mengambil pesanan Anda.",
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -223,7 +227,7 @@ fun PayAtCounterScreen(
                                 color = Color(0xFF64748B)
                             )
                             Text(
-                                text = "#C-089",
+                                text = if (displayCode.startsWith("#")) displayCode else "#$displayCode",
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.Black,
                                 color = if (isExpired) Color(0xFF94A3B8) else Color(0xFF0052CC),
@@ -258,7 +262,7 @@ fun PayAtCounterScreen(
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Text(
-                                        text = "Stand 04",
+                                        text = standNameDisplay.ifBlank { "Stand Kantin" },
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFF0F172A)
@@ -275,7 +279,7 @@ fun PayAtCounterScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "$standNameDisplay - Pintu Timur Kantin",
+                            text = "${standNameDisplay.ifBlank { "Stand Kantin" }} • Kantin SMKN 8",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF334155),
@@ -297,7 +301,7 @@ fun PayAtCounterScreen(
                         }
                     }
 
-                    // Display QR Code & Barcode Garis
+                    // Display QR Code & Barcode Garis Asli (ZXing Scannable)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -307,24 +311,10 @@ fun PayAtCounterScreen(
                             .padding(16.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            // QR Code
-                            QrisCodeCanvas(size = 180.dp)
-
-                            // Barcode Lines
-                            LinearBarcodeCanvas(width = 230.dp, height = 44.dp)
-
-                            Text(
-                                text = "C089-SMK8-2024",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF334155),
-                                letterSpacing = 2.sp
-                            )
-                        }
+                        OrderBarcodeSection(
+                            orderCode = displayCode.removePrefix("#"),
+                            qrSize = 175.dp
+                        )
                     }
 
                     // Box Total Tagihan Golden/Orange
@@ -466,7 +456,7 @@ fun PayAtCounterScreen(
                             ) {
                                 append("Rp ${formatRupiah(state.totalPayment)}")
                             }
-                            append(" ke penjual Stand 04 sebelum waktu 15 menit berakhir.")
+                            append(" ke penjual ${standNameDisplay.ifBlank { "stand kantin" }} sebelum waktu 15 menit berakhir.")
                         },
                         fontSize = 12.sp,
                         color = Color(0xFF7F1D1D),
@@ -550,7 +540,7 @@ fun PayAtCounterScreen(
                     onClick = {
                         Toast.makeText(
                             context,
-                            "Lokasi Stand 04: Pintu Timur Kantin SMKN 8 Jakarta.",
+                            "Lokasi: ${standNameDisplay.ifBlank { "Stand Kantin" }} di Kantin SMKN 8 Jakarta.",
                             Toast.LENGTH_LONG
                         ).show()
                     },
@@ -571,7 +561,7 @@ fun PayAtCounterScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
-                            text = "Petunjuk Lokasi Stand 04",
+                            text = "Petunjuk Lokasi ${standNameDisplay.ifBlank { "Stand Kantin" }}",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White

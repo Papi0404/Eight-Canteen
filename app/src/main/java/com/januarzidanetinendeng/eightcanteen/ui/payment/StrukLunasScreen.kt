@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Refresh
@@ -33,6 +35,7 @@ import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.VerifiedUser
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -41,8 +44,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -74,9 +79,16 @@ import com.januarzidanetinendeng.eightcanteen.data.repository.CanteenRepository
 import com.januarzidanetinendeng.eightcanteen.ui.checkout.CartViewModel
 import com.januarzidanetinendeng.eightcanteen.ui.checkout.formatRupiah
 import com.januarzidanetinendeng.eightcanteen.ui.components.EKantinLogoIcon
+import com.januarzidanetinendeng.eightcanteen.ui.components.OrderBarcodeSection
 import com.januarzidanetinendeng.eightcanteen.ui.theme.EightCanteenTheme
+import com.januarzidanetinendeng.eightcanteen.ui.theme.TextPrimary
+import com.januarzidanetinendeng.eightcanteen.ui.theme.TextSecondary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.text.style.TextOverflow
+import com.januarzidanetinendeng.eightcanteen.ui.theme.BluePrimary
+import com.januarzidanetinendeng.eightcanteen.ui.theme.BorderColor
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -91,27 +103,54 @@ fun StrukLunasScreen(
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    var orderDetail by remember { mutableStateOf<OrderResponse?>(null) }
+    val orderIdList = remember(orderId) {
+        orderId?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
+    }
+    var selectedOrderIndex by remember { mutableIntStateOf(0) }
+    val activeOrderId = orderIdList.getOrNull(selectedOrderIndex) ?: orderIdList.firstOrNull() ?: orderId
+
+    var multiOrderDetails by remember { mutableStateOf<Map<String, OrderResponse>>(emptyMap()) }
+    val orderDetail = if (!activeOrderId.isNullOrBlank()) multiOrderDetails[activeOrderId] else null
     var isCheckingStatus by remember { mutableStateOf(false) }
+    var showCancelDialog by remember { mutableStateOf(false) }
 
     // Polling otomatis untuk mengecek apakah penjual sudah scan pesanan siswa
     LaunchedEffect(orderId) {
-        if (!orderId.isNullOrBlank()) {
+        if (orderIdList.isNotEmpty()) {
             val repo = CanteenRepository()
-            repo.getOrderDetail(orderId).onSuccess { res ->
-                res.data?.let { orderDetail = it }
+            val initialMap = mutableMapOf<String, OrderResponse>()
+            for (id in orderIdList) {
+                repo.getOrderDetail(id).onSuccess { res ->
+                    res.data?.let { initialMap[id] = it }
+                }
             }
+            multiOrderDetails = initialMap
 
             while (true) {
                 delay(3000L)
-                if (orderDetail?.status != "COMPLETED") {
-                    repo.getOrderDetail(orderId).onSuccess { res ->
-                        res.data?.let { updated ->
-                            if (updated.status == "COMPLETED" && orderDetail?.status != "COMPLETED") {
-                                Toast.makeText(context, "Pesanan Berhasil Discan Penjual! Status: LUNAS", Toast.LENGTH_LONG).show()
+                val hasPending = orderIdList.any { id ->
+                    val st = multiOrderDetails[id]?.status
+                    st != "COMPLETED" && st != "CANCELLED"
+                }
+                if (hasPending) {
+                    val updatedMap = multiOrderDetails.toMutableMap()
+                    var newlyCompletedStand: String? = null
+                    for (id in orderIdList) {
+                        val current = updatedMap[id]
+                        if (current?.status != "COMPLETED" && current?.status != "CANCELLED") {
+                            repo.getOrderDetail(id).onSuccess { res ->
+                                res.data?.let { updated ->
+                                    if (updated.status == "COMPLETED" && current?.status != "COMPLETED") {
+                                        newlyCompletedStand = updated.stands?.name ?: "Stand"
+                                    }
+                                    updatedMap[id] = updated
+                                }
                             }
-                            orderDetail = updated
                         }
+                    }
+                    multiOrderDetails = updatedMap
+                    if (newlyCompletedStand != null) {
+                        Toast.makeText(context, "Pesanan di $newlyCompletedStand Telah Discan & Selesai!", Toast.LENGTH_LONG).show()
                     }
                 } else {
                     break
@@ -128,19 +167,21 @@ fun StrukLunasScreen(
     val displayTotal = orderDetail?.totalAmount?.takeIf { it > 0 }?.toDouble() ?: state.totalPayment
 
     fun refreshOrderStatus() {
-        if (!orderId.isNullOrBlank()) {
+        val targetId = activeOrderId
+        if (!targetId.isNullOrBlank()) {
             isCheckingStatus = true
             coroutineScope.launch {
                 val repo = CanteenRepository()
-                repo.getOrderDetail(orderId).onSuccess { res ->
+                repo.getOrderDetail(targetId).onSuccess { res ->
                     isCheckingStatus = false
                     res.data?.let { updated ->
-                        orderDetail = updated
+                        multiOrderDetails = multiOrderDetails + (targetId to updated)
+                        val standName = updated.stands?.name ?: "Stand"
                         if (updated.status == "COMPLETED") {
-                            Toast.makeText(context, "Pesanan Telah Discan Penjual! Status: LUNAS", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Pesanan $standName Telah Discan Penjual! Status: LUNAS", Toast.LENGTH_SHORT).show()
                         } else {
                             val statusDisplay = if (isCash && !isPaid) "Belum Lunas (Bayar Tunai)" else updated.status
-                            Toast.makeText(context, "Status Terkini: $statusDisplay", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Status $standName: $statusDisplay", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }.onFailure {
@@ -182,6 +223,100 @@ fun StrukLunasScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // 0. Stand Selector if multiple stands ordered
+            if (orderIdList.size > 1) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, BorderColor)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("🏪", fontSize = 16.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Pilih Tiket Stand (${orderIdList.size} Stand)",
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Silakan klik tab stand di bawah untuk menampilkan QR Code stand yang ingin diambil:",
+                            fontSize = 11.sp,
+                            color = TextSecondary,
+                            lineHeight = 15.sp
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            orderIdList.forEachIndexed { idx, id ->
+                                val ord = multiOrderDetails[id]
+                                val sName = ord?.stands?.name ?: ord?.standName ?: "Stand ${idx + 1}"
+                                val oNum = ord?.orderNumber ?: ""
+                                val isSelected = selectedOrderIndex == idx
+                                val isOrderDone = ord?.status == "COMPLETED"
+
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(
+                                            when {
+                                                isSelected -> BluePrimary
+                                                isOrderDone -> Color(0xFFDCFCE7)
+                                                else -> Color(0xFFF1F5F9)
+                                            }
+                                        )
+                                        .border(
+                                            width = if (isSelected) 1.5.dp else 1.dp,
+                                            color = when {
+                                                isSelected -> BluePrimary
+                                                isOrderDone -> Color(0xFF86EFAC)
+                                                else -> BorderColor
+                                            },
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
+                                        .clickable { selectedOrderIndex = idx }
+                                        .padding(vertical = 10.dp, horizontal = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = sName,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = when {
+                                                isSelected -> Color.White
+                                                isOrderDone -> Color(0xFF15803D)
+                                                else -> TextPrimary
+                                            },
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = if (oNum.isNotBlank()) "#$oNum ${if (isOrderDone) "✓ Lunas" else ""}" else "Pilih",
+                                            fontSize = 10.5.sp,
+                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                            color = when {
+                                                isSelected -> Color.White.copy(alpha = 0.9f)
+                                                isOrderDone -> Color(0xFF166534)
+                                                else -> TextSecondary
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // 1. Success / Pending Header Banner Card
             val bannerBg = if (isPaid) Color(0xFF0052CC) else Color(0xFFD97706)
             Card(
@@ -304,7 +439,7 @@ fun StrukLunasScreen(
                         )
                         Text(
                             text = orderDetail?.orderNumber?.takeIf { it.isNotBlank() }?.let { "#$it" }
-                                ?: (orderId?.takeLast(5)?.let { "#A-$it" } ?: "#A-142"),
+                                ?: (orderId?.takeLast(5)?.let { "#A-$it" } ?: "#-"),
                             fontSize = 36.sp,
                             fontWeight = FontWeight.Black,
                             color = Color(0xFF0052CC),
@@ -412,19 +547,13 @@ fun StrukLunasScreen(
                                 }
                             }
 
-                            // QR Code
-                            QrisCodeCanvas(size = 170.dp)
+                            // QR Code & Barcode Asli Berstandar ZXing (Dapat Discan Kamera Penjual)
+                            val orderTicketCode = orderDetail?.orderNumber?.takeIf { it.isNotBlank() }
+                                ?: (activeOrderId ?: "-")
 
-                            // Barcode Linear Lines
-                            LinearBarcodeCanvas(width = 220.dp, height = 40.dp)
-
-                            Text(
-                                text = orderDetail?.orderNumber?.takeIf { it.isNotBlank() }?.let { "EKANTIN-$it" }
-                                    ?: (orderId?.take(12)?.let { "EKANTIN-$it" } ?: "SMKN8-A142-2025"),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF334155),
-                                letterSpacing = 1.5.sp
+                            OrderBarcodeSection(
+                                orderCode = orderTicketCode,
+                                qrSize = 175.dp
                             )
 
                             // Tombol Refresh Status Pesanan
@@ -456,6 +585,82 @@ fun StrukLunasScreen(
 
                     // Dashed Divider Separator
                     DashedLineSeparator()
+
+                    // Menu Items for this Stand
+                    val standOrderItems = orderDetail?.orderItems ?: emptyList()
+                    if (standOrderItems.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color(0xFFF8FAFC))
+                                .border(1.dp, BorderColor, RoundedCornerShape(14.dp))
+                                .padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = "Menu Pesanan Stand Ini:",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                            standOrderItems.forEach { itm ->
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "${itm.quantity}x ${itm.name}",
+                                            fontSize = 12.5.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = TextPrimary
+                                        )
+                                        if (itm.price > 0) {
+                                            Text(
+                                                text = "Rp ${formatRupiah((itm.price * itm.quantity).toDouble())}",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = TextSecondary
+                                            )
+                                        }
+                                    }
+                                    if (!itm.note.isNullOrBlank()) {
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "📝 Catatan: ${itm.note}",
+                                            fontSize = 11.sp,
+                                            color = Color(0xFFB45309),
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (!orderDetail?.note.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFFFEF3C7))
+                                        .border(0.8.dp, Color(0xFFFDE68A), RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.Top) {
+                                        Text(text = "📌 ", fontSize = 12.sp)
+                                        Text(
+                                            text = "Catatan: ${orderDetail?.note}",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFF92400E)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     // Details Section
                     Column(
@@ -489,7 +694,7 @@ fun StrukLunasScreen(
                                     color = Color(0xFF64748B)
                                 )
                                 Text(
-                                    text = "Gedung C Lantai 1 – Stand 04",
+                                    text = orderDetail?.stands?.counterSlot ?: orderDetail?.stands?.name ?: "Kantin SMKN 8",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF0F172A)
@@ -593,7 +798,7 @@ fun StrukLunasScreen(
                         TransactionRow(label = "Waktu Bayar", value = currentDateStr)
                         TransactionRow(
                             label = "No. Referensi",
-                            value = orderDetail?.id?.take(18) ?: (orderId?.take(18) ?: "SMKN8-QRIS-994281")
+                            value = orderDetail?.id?.take(18) ?: (orderId?.take(18) ?: "-")
                         )
                         val methodText = when {
                             (orderDetail?.paymentMethod ?: state.selectedPaymentMethodName).contains("QRIS", true) -> "QRIS Dinamis (Midtrans / E-Wallet)"
@@ -628,14 +833,28 @@ fun StrukLunasScreen(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(6.dp))
-                                        .background(if (isPaid) Color(0xFFDCFCE7) else Color(0xFFFEF3C7))
+                                        .background(
+                                            when {
+                                                currentStatus == "CANCELLED" -> Color(0xFFFEE2E2)
+                                                isPaid -> Color(0xFFDCFCE7)
+                                                else -> Color(0xFFFEF3C7)
+                                            }
+                                        )
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
-                                        text = if (isPaid) "LUNAS" else "BELUM LUNAS",
+                                        text = when {
+                                            currentStatus == "CANCELLED" -> "DIBATALKAN"
+                                            isPaid -> "LUNAS"
+                                            else -> "BELUM LUNAS"
+                                        },
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (isPaid) Color(0xFF15803D) else Color(0xFFB45309)
+                                        color = when {
+                                            currentStatus == "CANCELLED" -> Color(0xFFDC2626)
+                                            isPaid -> Color(0xFF15803D)
+                                            else -> Color(0xFFB45309)
+                                        }
                                     )
                                 }
                             }
@@ -712,10 +931,96 @@ fun StrukLunasScreen(
                         )
                     }
                 }
+
+                // Button 3: Batalkan Pesanan (jika pesanan belum diproses/dimasak)
+                val canCancelOrder = currentStatus != "COMPLETED" && currentStatus != "COOKING" && currentStatus != "CANCELLED" && currentStatus != "READY"
+                if (canCancelOrder) {
+                    OutlinedButton(
+                        onClick = { showCancelDialog = true },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color(0xFFDC2626)
+                        ),
+                        border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Batalkan",
+                                tint = Color(0xFFDC2626),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "Batalkan Pesanan Ini",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFDC2626)
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    if (showCancelDialog && !activeOrderId.isNullOrBlank()) {
+        val targetCancelId = activeOrderId
+        AlertDialog(
+            onDismissRequest = { showCancelDialog = false },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = Color.White,
+            title = {
+                Text(
+                    text = "Batalkan Pesanan #${orderDetail?.orderNumber ?: ""}",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "Apakah Anda yakin ingin membatalkan pesanan untuk stand ini? Stok menu akan dikembalikan dan jika menggunakan poin, poin akan dikembalikan ke akun Anda.",
+                    fontSize = 13.sp,
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showCancelDialog = false
+                        coroutineScope.launch {
+                            val repo = CanteenRepository()
+                            repo.cancelOrder(targetCancelId).onSuccess { res ->
+                                Toast.makeText(context, "Pesanan berhasil dibatalkan!", Toast.LENGTH_SHORT).show()
+                                val updated = res.data ?: orderDetail?.copy(status = "CANCELLED")
+                                if (updated != null) {
+                                    multiOrderDetails = multiOrderDetails + (targetCancelId to updated)
+                                }
+                            }.onFailure { err ->
+                                Toast.makeText(context, "Gagal membatalkan pesanan: ${err.message}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Ya, Batalkan", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelDialog = false }) {
+                    Text("Kembali", fontSize = 12.sp, color = TextSecondary)
+                }
+            }
+        )
     }
 }
 

@@ -121,9 +121,12 @@ fun CheckoutScreen(
             CheckoutBottomBar(
                 totalBill = state.totalBill,
                 selectedMethodName = state.selectedPaymentMethodName,
+                isCartEmpty = state.cartItems.isEmpty(),
                 onPayClick = {
-                    if (state.selectedPaymentMethod == PaymentMethod.QRIS) {
-                        onNavigateToQris()
+                    if (state.cartItems.isEmpty()) {
+                        Toast.makeText(context, "Keranjang belanja masih kosong! Silakan pilih menu terlebih dahulu.", Toast.LENGTH_SHORT).show()
+                    } else if (state.selectedPaymentMethod == PaymentMethod.QRIS) {
+                        Toast.makeText(context, "Metode pembayaran QRIS belum tersedia saat ini. Silakan gunakan metode Tunai.", Toast.LENGTH_SHORT).show()
                     } else {
                         onNavigateToCash()
                     }
@@ -909,16 +912,18 @@ private fun PaymentMethodSelectionCard(
             )
         }
 
-        // Option 1: QRIS Verifikasi Otomatis
-        val isQrisSelected = selectedMethod == PaymentMethod.QRIS
+        // Option 1: QRIS Verifikasi Otomatis (Dinonaktifkan Sementara: "Belum Tersedia")
+        val context = LocalContext.current
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onMethodSelected(PaymentMethod.QRIS) },
+                .clickable {
+                    Toast.makeText(context, "Metode pembayaran QRIS belum tersedia saat ini", Toast.LENGTH_SHORT).show()
+                },
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = if (isQrisSelected) BorderStroke(1.5.dp, Color(0xFF0052CC)) else BorderStroke(1.dp, Color(0xFFE2E8F0)),
-            elevation = CardDefaults.cardElevation(defaultElevation = if (isQrisSelected) 2.dp else 0.dp)
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -941,13 +946,13 @@ private fun PaymentMethodSelectionCard(
                             modifier = Modifier
                                 .size(42.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF2563EB)),
+                                .background(Color(0xFFE2E8F0)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.QrCodeScanner,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = Color(0xFF94A3B8),
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -961,52 +966,41 @@ private fun PaymentMethodSelectionCard(
                                     text = "QRIS Verifikasi Otomatis",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
+                                    color = Color(0xFF64748B)
                                 )
                             }
 
-                            // Badge REKOMENDASI
+                            // Badge Belum Tersedia
                             Box(
                                 modifier = Modifier
                                     .clip(CircleShape)
-                                    .background(Color(0xFF0052CC))
+                                    .background(Color(0xFFFEE2E2))
                                     .padding(horizontal = 8.dp, vertical = 2.dp)
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.VerifiedUser,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(10.dp)
-                                    )
-                                    Text(
-                                        text = "REKOMENDASI",
-                                        color = Color.White,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        letterSpacing = 0.5.sp
-                                    )
-                                }
+                                Text(
+                                    text = "Belum Tersedia",
+                                    color = Color(0xFFDC2626),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    letterSpacing = 0.5.sp
+                                )
                             }
 
                             Text(
                                 text = "Bebas Antre • Langsung Ambil",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF0052CC)
+                                color = Color(0xFF94A3B8)
                             )
                         }
                     }
 
-                    // Radio Check Circle
-                    SelectionRadioCircle(isSelected = isQrisSelected)
+                    // Radio Check Circle (Disabled)
+                    SelectionRadioCircle(isSelected = false)
                 }
 
                 Text(
-                    text = "Langsung lunas dan masuk antrean dapur. Scan barcode pesanan di loket Stand 04 tanpa perlu bawa uang tunai.",
+                    text = "Langsung lunas dan masuk antrean dapur. Scan barcode pesanan di loket stand tanpa perlu bawa uang tunai.",
                     fontSize = 12.sp,
                     color = Color(0xFF475569),
                     lineHeight = 17.sp
@@ -1122,7 +1116,7 @@ private fun PaymentMethodSelectionCard(
 
                         Text(
                             text = buildAnnotatedString {
-                                append("Siapkan uang pas di loket Stand 04. ")
+                                append("Siapkan uang pas di loket stand. ")
                                 withStyle(
                                     style = SpanStyle(
                                         fontWeight = FontWeight.Bold,
@@ -1320,6 +1314,7 @@ private fun PaymentSummaryCard(
 private fun CheckoutBottomBar(
     totalBill: Double,
     selectedMethodName: String,
+    isCartEmpty: Boolean = false,
     onPayClick: () -> Unit
 ) {
     Box(
@@ -1356,7 +1351,12 @@ private fun CheckoutBottomBar(
 
             Button(
                 onClick = onPayClick,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0052CC)),
+                enabled = !isCartEmpty,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF0052CC),
+                    disabledContainerColor = Color(0xFFCBD5E1),
+                    disabledContentColor = Color(0xFF64748B)
+                ),
                 shape = CircleShape,
                 contentPadding = PaddingValues(
                     horizontal = 24.dp,
