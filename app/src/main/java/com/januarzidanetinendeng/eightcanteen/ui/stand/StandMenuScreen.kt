@@ -46,6 +46,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -82,6 +84,7 @@ import com.januarzidanetinendeng.eightcanteen.ui.theme.TextPrimary
 import com.januarzidanetinendeng.eightcanteen.ui.theme.TextSecondary
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StandMenuScreen(
     cartViewModel: CartViewModel = remember { CartViewModel() },
@@ -115,6 +118,7 @@ fun StandMenuScreen(
 
     var menuList by remember { mutableStateOf<List<MenuItem>>(emptyList()) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isRefreshing by remember { mutableStateOf(false) }
 
     fun classifyCategory(name: String, standCategory: String?): String {
         val n = name.lowercase()
@@ -125,18 +129,19 @@ fun StandMenuScreen(
         return if (isDrink) "Minuman" else "Makanan"
     }
 
-    fun loadMenus() {
-        isLoading = true
+    fun loadMenus(isPullRefresh: Boolean = false) {
+        if (isPullRefresh) isRefreshing = true else isLoading = true
         errorMessage = null
         coroutineScope.launch {
-            // 1. Coba ambil berdasarkan standId
-            val result = if (standId.isNotBlank()) {
-                repository.getMenusByStand(standId)
-            } else {
-                repository.getAllMenus()
-            }
+            try {
+                // 1. Coba ambil berdasarkan standId
+                val result = if (standId.isNotBlank()) {
+                    repository.getMenusByStand(standId)
+                } else {
+                    repository.getAllMenus()
+                }
 
-            result.onSuccess { res ->
+                result.onSuccess { res ->
                 val apiMenus = res.data ?: emptyList()
                 if (apiMenus.isNotEmpty()) {
                     menuList = apiMenus.map { menu ->
@@ -222,9 +227,12 @@ fun StandMenuScreen(
                     }
                 }
             }.onFailure { err ->
-                isLoading = false
                 menuList = emptyList()
                 errorMessage = "Gagal memuat menu: ${err.message ?: "Kesalahan server"}"
+            }
+            } finally {
+                isLoading = false
+                isRefreshing = false
             }
         }
     }
@@ -317,12 +325,17 @@ fun StandMenuScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = { loadMenus(isPullRefresh = true) },
+                modifier = Modifier.fillMaxSize()
             ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                 item {
                     Spacer(modifier = Modifier.height(4.dp))
 
@@ -712,6 +725,7 @@ fun StandMenuScreen(
                     Spacer(modifier = Modifier.height(84.dp))
                 }
             }
+        }
 
             // 6. Floating Cart Bar
             AnimatedVisibility(

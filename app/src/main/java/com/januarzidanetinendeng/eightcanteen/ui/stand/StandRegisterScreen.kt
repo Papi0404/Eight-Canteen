@@ -16,10 +16,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.rotate
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -100,12 +102,8 @@ fun StandRegisterScreen(
     var isLoading by remember { mutableStateOf(false) }
 
     val counterOptions = listOf(
-        "Loket Stand 01 (Lantai 1 Utama SMKN 8)",
-        "Loket Stand 02 (Lantai 1 Utama SMKN 8)",
-        "Loket Stand 03 (Lantai 1 Timur SMKN 8)",
-        "Loket Stand 04 (Lantai 1 Barat SMKN 8)",
-        "Loket Stand 05 (Samping Lapangan Olahraga)",
-        "Loket Stand 06 (Area Koperasi Sekolah)"
+        "Stand 01", "Stand 02", "Stand 03", "Stand 04", "Stand 05",
+        "Stand 06", "Stand 07", "Stand 08", "Stand 09", "Stand 10"
     )
 
     val categoryOptions = listOf(
@@ -396,24 +394,27 @@ fun StandRegisterScreen(
                     Box(modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(
                             value = counterSlot,
-                            onValueChange = {},
-                            readOnly = true,
-                            placeholder = { Text("Pilih Loket Kantin", fontSize = 13.sp, color = TextMuted) },
+                            onValueChange = { counterSlot = it },
+                            placeholder = { Text("Contoh: Stand 01 / 01", fontSize = 13.sp, color = TextMuted) },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Default.Numbers,
                                     contentDescription = "Counter",
-                                    tint = TextSecondary,
+                                    tint = if (counterSlot.isNotBlank()) BluePrimary else TextSecondary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             },
                             trailingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDropDown,
-                                    contentDescription = "Dropdown",
-                                    tint = TextSecondary,
-                                    modifier = Modifier.size(22.dp)
-                                )
+                                IconButton(onClick = { isCounterDropdownExpanded = !isCounterDropdownExpanded }) {
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = "Dropdown",
+                                        tint = BluePrimary,
+                                        modifier = Modifier
+                                            .size(26.dp)
+                                            .rotate(if (isCounterDropdownExpanded) 180f else 0f)
+                                    )
+                                }
                             },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
@@ -426,7 +427,6 @@ fun StandRegisterScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp)
-                                .clickable { isCounterDropdownExpanded = true }
                         )
 
                         DropdownMenu(
@@ -438,11 +438,56 @@ fun StandRegisterScreen(
                         ) {
                             counterOptions.forEach { opt ->
                                 DropdownMenuItem(
-                                    text = { Text(text = opt, fontSize = 13.sp) },
+                                    text = {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = opt,
+                                                fontSize = 13.sp,
+                                                fontWeight = if (counterSlot == opt) FontWeight.Bold else FontWeight.Medium,
+                                                color = if (counterSlot == opt) BluePrimary else TextPrimary
+                                            )
+                                            if (counterSlot == opt) {
+                                                Text(text = "✓", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
+                                            }
+                                        }
+                                    },
                                     onClick = {
                                         counterSlot = opt
                                         isCounterDropdownExpanded = false
                                     }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Quick Chips Pilihan Nomor Stand
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        counterOptions.forEach { opt ->
+                            val isSelected = counterSlot == opt
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) BluePrimary else BlueLightBg)
+                                    .border(1.dp, if (isSelected) BluePrimary else BorderColor, RoundedCornerShape(8.dp))
+                                    .clickable { counterSlot = opt }
+                                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                            ) {
+                                Text(
+                                    text = opt,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) Color.White else BluePrimary
                                 )
                             }
                         }
@@ -468,17 +513,21 @@ fun StandRegisterScreen(
                                 Icon(
                                     imageVector = Icons.Default.Fastfood,
                                     contentDescription = "Category",
-                                    tint = TextSecondary,
+                                    tint = if (foodCategory.isNotBlank()) BluePrimary else TextSecondary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             },
                             trailingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDropDown,
-                                    contentDescription = "Dropdown",
-                                    tint = TextSecondary,
-                                    modifier = Modifier.size(22.dp)
-                                )
+                                IconButton(onClick = { isCategoryDropdownExpanded = !isCategoryDropdownExpanded }) {
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = "Dropdown",
+                                        tint = BluePrimary,
+                                        modifier = Modifier
+                                            .size(26.dp)
+                                            .rotate(if (isCategoryDropdownExpanded) 180f else 0f)
+                                    )
+                                }
                             },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
@@ -491,6 +540,13 @@ fun StandRegisterScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp)
+                        )
+
+                        // Clickable overlay so clicking anywhere on the readOnly field opens dropdown
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clip(RoundedCornerShape(12.dp))
                                 .clickable { isCategoryDropdownExpanded = true }
                         )
 

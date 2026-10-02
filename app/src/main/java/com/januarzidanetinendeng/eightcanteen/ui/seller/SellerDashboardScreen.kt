@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -104,6 +105,7 @@ fun determineFoodEmoji(name: String): String {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SellerDashboardScreen(
     standName: String = "",
@@ -203,24 +205,27 @@ fun SellerDashboardScreen(
     }
 
     val repository = remember { CanteenRepository() }
+    var isRefreshing by remember { mutableStateOf(false) }
 
-    fun refreshAllSellerData() {
+    fun refreshAllSellerData(isPullRefresh: Boolean = false) {
+        if (isPullRefresh) isRefreshing = true
         coroutineScope.launch {
-            val session = SessionManager.getInstance(context)
-            val sellerStandId = session.getStandId()
+            try {
+                val session = SessionManager.getInstance(context)
+                val sellerStandId = session.getStandId()
 
-            // 1. Fetch Stand info (/stands/me)
-            repository.getMyStand().onSuccess { res ->
-                res.data?.let { stand ->
-                    val name = stand.name.takeIf { it.isNotBlank() } ?: currentStandName
-                    val slot = (stand.counterSlot ?: stand.standNumber ?: "").takeIf { it.isNotBlank() } ?: currentCounterSlot
-                    currentStandName = name
-                    currentCounterSlot = slot
-                    stand.isOpen?.let { isStoreOpen = it }
-                    session.saveStand(stand.id, name, slot)
-                    onStandUpdated(name, slot)
+                // 1. Fetch Stand info (/stands/me)
+                repository.getMyStand().onSuccess { res ->
+                    res.data?.let { stand ->
+                        val name = stand.name.takeIf { it.isNotBlank() } ?: currentStandName
+                        val slot = (stand.counterSlot ?: stand.standNumber ?: "").takeIf { it.isNotBlank() } ?: currentCounterSlot
+                        currentStandName = name
+                        currentCounterSlot = slot
+                        stand.isOpen?.let { isStoreOpen = it }
+                        session.saveStand(stand.id, name, slot)
+                        onStandUpdated(name, slot)
+                    }
                 }
-            }
 
             // 2. Fetch Seller Revenue Metrics (/stands/revenue atau /seller/revenue)
             repository.getSellerRevenue().onSuccess { res ->
@@ -303,6 +308,9 @@ fun SellerDashboardScreen(
                 }
             }.onFailure {
                 isLoadingOrders = false
+            }
+            } finally {
+                isRefreshing = false
             }
         }
     }
@@ -430,17 +438,22 @@ fun SellerDashboardScreen(
             }
         }
     ) { innerPadding ->
-
-        // =========================================================================
-        // VIEW TAB 1: DAFTAR PESANAN MASUK & SCAN QR (selectedNavTab == 1)
-        // =========================================================================
-        if (selectedNavTab == 1) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { refreshAllSellerData(isPullRefresh = true) },
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            // =========================================================================
+            // VIEW TAB 1: DAFTAR PESANAN MASUK & SCAN QR (selectedNavTab == 1)
+            // =========================================================================
+            if (selectedNavTab == 1) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
                 // Top Banner with Scan QR Action
                 Card(
                     modifier = Modifier
@@ -861,7 +874,6 @@ fun SellerDashboardScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
                     .verticalScroll(scrollState)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -1687,6 +1699,7 @@ fun SellerDashboardScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
             }
+        }
         }
     }
 

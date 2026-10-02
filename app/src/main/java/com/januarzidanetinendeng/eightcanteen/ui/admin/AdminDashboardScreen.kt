@@ -17,10 +17,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -36,6 +38,7 @@ import com.januarzidanetinendeng.eightcanteen.ui.theme.*
 import kotlinx.coroutines.launch
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminDashboardScreen(
     onLogoutClick: () -> Unit = {},
@@ -74,6 +77,12 @@ fun AdminDashboardScreen(
     var editStandSlot by remember { mutableStateOf("") }
     var editStandCategory by remember { mutableStateOf("Makanan") }
     var editStandIsOpen by remember { mutableStateOf(true) }
+    var isEditStandSlotDropdownExpanded by remember { mutableStateOf(false) }
+
+    val standSlotOptions = listOf(
+        "Stand 01", "Stand 02", "Stand 03", "Stand 04", "Stand 05",
+        "Stand 06", "Stand 07", "Stand 08", "Stand 09", "Stand 10"
+    )
 
     var deletingStand by remember { mutableStateOf<AdminStandResponse?>(null) }
     var deletingSeller by remember { mutableStateOf<AdminSellerResponse?>(null) }
@@ -96,51 +105,55 @@ fun AdminDashboardScreen(
     var togglingStudentStatus by remember { mutableStateOf<Pair<AdminStudentResponse, Boolean>?>(null) }
     var deletingStudent by remember { mutableStateOf<AdminStudentResponse?>(null) }
     var viewingStudentDetail by remember { mutableStateOf<AdminStudentDetailResponse?>(null) }
+    var isRefreshing by remember { mutableStateOf(false) }
 
-    fun refreshAllData() {
-        isLoading = true
+    fun refreshAllData(isPullRefresh: Boolean = false) {
+        if (isPullRefresh) isRefreshing = true else isLoading = true
         coroutineScope.launch {
-            // Load Revenue
-            val periodParam = if (selectedPeriod == "today") "today" else null
-            repository.getAdminRevenue(period = periodParam).onSuccess { res ->
-                revenueData = res.data
-            }
+            try {
+                // Load Revenue
+                val periodParam = if (selectedPeriod == "today") "today" else null
+                repository.getAdminRevenue(period = periodParam).onSuccess { res ->
+                    revenueData = res.data
+                }
 
-            // Load Stands
-            repository.adminGetStands().onSuccess { res ->
-                standsList = res.data ?: emptyList()
-            }
+                // Load Stands
+                repository.adminGetStands().onSuccess { res ->
+                    standsList = res.data ?: emptyList()
+                }
 
-            // Load Sellers
-            repository.adminGetSellers().onSuccess { res ->
-                sellersList = res.data ?: emptyList()
-            }
+                // Load Sellers
+                repository.adminGetSellers().onSuccess { res ->
+                    sellersList = res.data ?: emptyList()
+                }
 
-            // Load Students
-            val statusParam = when (studentStatusFilter) {
-                "Aktif" -> "active"
-                "Disuspend" -> "suspended"
-                else -> null
-            }
-            repository.adminGetStudents(
-                search = studentSearchQuery.ifBlank { null },
-                className = selectedStudentClassFilter,
-                status = statusParam
-            ).onSuccess { res ->
-                studentsList = res.data ?: emptyList()
-            }
+                // Load Students
+                val statusParam = when (studentStatusFilter) {
+                    "Aktif" -> "active"
+                    "Disuspend" -> "suspended"
+                    else -> null
+                }
+                repository.adminGetStudents(
+                    search = studentSearchQuery.ifBlank { null },
+                    className = selectedStudentClassFilter,
+                    status = statusParam
+                ).onSuccess { res ->
+                    studentsList = res.data ?: emptyList()
+                }
 
-            // Load Classes
-            repository.adminGetClasses().onSuccess { res ->
-                classesList = res.data ?: emptyList()
-            }
+                // Load Classes
+                repository.adminGetClasses().onSuccess { res ->
+                    classesList = res.data ?: emptyList()
+                }
 
-            // Load Violations
-            repository.getAdminViolations().onSuccess { res ->
-                violationsList = res.data ?: emptyList()
+                // Load Violations
+                repository.getAdminViolations().onSuccess { res ->
+                    violationsList = res.data ?: emptyList()
+                }
+            } finally {
+                isLoading = false
+                isRefreshing = false
             }
-
-            isLoading = false
         }
     }
 
@@ -300,7 +313,11 @@ fun AdminDashboardScreen(
                 )
             }
 
-            Box(modifier = Modifier.fillMaxSize()) {
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = { refreshAllData(isPullRefresh = true) },
+                modifier = Modifier.fillMaxSize()
+            ) {
                 when (selectedNavTab) {
                     0 -> AdminRevenueTab(
                         revenue = revenueData,
@@ -511,15 +528,99 @@ fun AdminDashboardScreen(
                         singleLine = true
                     )
 
-                    OutlinedTextField(
-                        value = editStandSlot,
-                        onValueChange = { editStandSlot = it },
-                        label = { Text("Lokasi / Nomor Slot Stand") },
-                        placeholder = { Text("Stand 01 (Gedung C)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true
-                    )
+                    // Nomor Stand / Loket (Bisa diketik atau dipilih)
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "Nomor Stand / Loket *",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextSecondary,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(
+                                value = editStandSlot,
+                                onValueChange = { editStandSlot = it },
+                                placeholder = { Text("Contoh: Stand 01") },
+                                trailingIcon = {
+                                    IconButton(onClick = { isEditStandSlotDropdownExpanded = !isEditStandSlotDropdownExpanded }) {
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowDropDown,
+                                            contentDescription = "Pilih Nomor Stand",
+                                            tint = BluePrimary,
+                                            modifier = Modifier.rotate(if (isEditStandSlotDropdownExpanded) 180f else 0f)
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                singleLine = true
+                            )
+
+                            DropdownMenu(
+                                expanded = isEditStandSlotDropdownExpanded,
+                                onDismissRequest = { isEditStandSlotDropdownExpanded = false },
+                                modifier = Modifier
+                                    .fillMaxWidth(0.75f)
+                                    .background(Color.White)
+                            ) {
+                                standSlotOptions.forEach { opt ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = opt,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = if (editStandSlot == opt) FontWeight.Bold else FontWeight.Medium,
+                                                    color = if (editStandSlot == opt) BluePrimary else TextPrimary
+                                                )
+                                                if (editStandSlot == opt) {
+                                                    Text(text = "✓", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
+                                                }
+                                            }
+                                        },
+                                        onClick = {
+                                            editStandSlot = opt
+                                            isEditStandSlotDropdownExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        // Quick Chips Pilihan Nomor Stand
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            standSlotOptions.forEach { opt ->
+                                val isSelected = editStandSlot == opt
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isSelected) BluePrimary else Color(0xFFEFF6FF))
+                                        .border(1.dp, if (isSelected) BluePrimary else BorderColor, RoundedCornerShape(8.dp))
+                                        .clickable { editStandSlot = opt }
+                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                ) {
+                                    Text(
+                                        text = opt,
+                                        fontSize = 11.5.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color.White else BluePrimary
+                                    )
+                                }
+                            }
+                        }
+                    }
 
                     OutlinedTextField(
                         value = editStandCategory,
@@ -771,7 +872,7 @@ fun AdminDashboardScreen(
 
                     OutlinedTextField(
                         value = newStudentPhone,
-                        onValueChange = { newStudentPhone = it },
+                        onValueChange = { newStudentPhone = it.filter { c -> c.isDigit() } },
                         label = { Text("Nomor WhatsApp (Contoh: 08123456789)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         modifier = Modifier.fillMaxWidth(),
@@ -781,8 +882,9 @@ fun AdminDashboardScreen(
 
                     OutlinedTextField(
                         value = newStudentNis,
-                        onValueChange = { newStudentNis = it },
-                        label = { Text("NIS Siswa (Opsional)") },
+                        onValueChange = { newStudentNis = it.filter { c -> c.isDigit() } },
+                        label = { Text("NIS Siswa (Hanya Angka, Opsional)") },
+                        placeholder = { Text("Contoh: 12345") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -867,8 +969,10 @@ fun AdminDashboardScreen(
 
                     OutlinedTextField(
                         value = editStudentNis,
-                        onValueChange = { editStudentNis = it },
-                        label = { Text("NIS") },
+                        onValueChange = { editStudentNis = it.filter { c -> c.isDigit() } },
+                        label = { Text("NIS Siswa (Hanya Angka)") },
+                        placeholder = { Text("Contoh: 12345") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true
@@ -876,8 +980,9 @@ fun AdminDashboardScreen(
 
                     OutlinedTextField(
                         value = editStudentPhone,
-                        onValueChange = { editStudentPhone = it },
+                        onValueChange = { editStudentPhone = it.filter { c -> c.isDigit() } },
                         label = { Text("Nomor HP") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true

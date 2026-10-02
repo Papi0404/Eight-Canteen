@@ -63,47 +63,69 @@ import com.januarzidanetinendeng.eightcanteen.ui.theme.TextMuted
 import com.januarzidanetinendeng.eightcanteen.ui.theme.TextPrimary
 import com.januarzidanetinendeng.eightcanteen.ui.theme.TextSecondary
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AllStandsScreen(
     onBackClick: () -> Unit = {},
     onStandClick: (standId: String, standName: String) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var searchQuery by remember { mutableStateOf("") }
 
     var stands by remember { mutableStateOf<List<StandItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var isRefreshing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val repository = remember { CanteenRepository() }
 
-    LaunchedEffect(Unit) {
-        isLoading = true
-        errorMessage = null
-        repository.getStands().onSuccess { res ->
-            isLoading = false
-            stands = (res.data ?: emptyList()).map { stand ->
-                StandItem(
-                    id = stand.id,
-                    name = stand.name,
-                    rating = "",
-                    distanceOrTime = "${stand.counterSlot ?: "Stand"} • ${if (stand.isOpen) "Buka" else "Tutup"}",
-                    isBusy = false,
-                    foodEmoji = when {
-                        stand.name.contains("Kebab", true) -> "🥙"
-                        stand.name.contains("Ketoprak", true) -> "🍲"
-                        stand.name.contains("Ayam", true) -> "🍗"
-                        stand.name.contains("Jus", true) || stand.name.contains("Buah", true) -> "🍹"
-                        stand.name.contains("Kopi", true) || stand.name.contains("Teh", true) -> "🧋"
-                        stand.name.contains("Dimsum", true) -> "🥟"
-                        else -> "🍱"
-                    }
-                )
-            }
-        }.onFailure { err ->
-            isLoading = false
-            errorMessage = "Gagal memuat stand dari server: ${err.message ?: "Kesalahan jaringan"}"
-            stands = emptyList()
+    fun loadStands(isPullRefresh: Boolean = false) {
+        if (isPullRefresh) {
+            isRefreshing = true
+        } else {
+            isLoading = true
         }
+        errorMessage = null
+        coroutineScope.launch {
+            repository.getStands().onSuccess { res ->
+                isLoading = false
+                isRefreshing = false
+                stands = (res.data ?: emptyList()).map { stand ->
+                    StandItem(
+                        id = stand.id,
+                        name = stand.name,
+                        rating = "",
+                        distanceOrTime = "${stand.counterSlot ?: "Stand"} • ${if (stand.isOpen) "Buka" else "Tutup"}",
+                        isBusy = false,
+                        foodEmoji = when {
+                            stand.name.contains("Kebab", true) -> "🥙"
+                            stand.name.contains("Ketoprak", true) -> "🍲"
+                            stand.name.contains("Ayam", true) -> "🍗"
+                            stand.name.contains("Jus", true) || stand.name.contains("Buah", true) -> "🍹"
+                            stand.name.contains("Kopi", true) || stand.name.contains("Teh", true) -> "🧋"
+                            stand.name.contains("Dimsum", true) -> "🥟"
+                            else -> "🍱"
+                        }
+                    )
+                }
+            }.onFailure { err ->
+                isLoading = false
+                isRefreshing = false
+                errorMessage = "Gagal memuat stand dari server: ${err.message ?: "Kesalahan jaringan"}"
+                stands = emptyList()
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        loadStands(isPullRefresh = false)
     }
 
     val filteredStands = remember(searchQuery, stands) {
@@ -174,96 +196,105 @@ fun AllStandsScreen(
             }
         }
     ) { innerPadding ->
-        Column(
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { loadStands(isPullRefresh = true) },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp)
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Search Bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Cari nama stand atau nomor tenant...", fontSize = 13.sp, color = TextMuted) },
-                leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = "Search", tint = TextSecondary) },
-                singleLine = true,
-                shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = InputBg,
-                    unfocusedContainerColor = InputBg,
-                    focusedBorderColor = BluePrimary,
-                    unfocusedBorderColor = BorderColor
-                ),
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
             ) {
-                Text(
-                    text = "Total Stand (${filteredStands.size})",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-                Text(
-                    text = "SMKN 8 Jakarta",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = TextSecondary
-                )
-            }
+                Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(12.dp))
+                // Search Bar
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Cari nama stand atau nomor tenant...", fontSize = 13.sp, color = TextMuted) },
+                    leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = "Search", tint = TextSecondary) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = InputBg,
+                        unfocusedContainerColor = InputBg,
+                        focusedBorderColor = BluePrimary,
+                        unfocusedBorderColor = BorderColor
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp)
+                )
 
-            if (isLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = BluePrimary)
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text("Memuat daftar stand...", fontSize = 13.sp, color = TextSecondary)
-                    }
+                    Text(
+                        text = "Total Stand (${filteredStands.size})",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "SMKN 8 Jakarta",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = TextSecondary
+                    )
                 }
-            } else if (errorMessage != null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("⚠️", fontSize = 36.sp)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(errorMessage ?: "Terjadi kesalahan", color = Color(0xFFDC2626), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(color = BluePrimary)
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text("Memuat daftar stand...", fontSize = 13.sp, color = TextSecondary)
+                        }
                     }
-                }
-            } else if (filteredStands.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("🏪", fontSize = 36.sp)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Tidak ada stand yang ditemukan", color = TextSecondary, fontSize = 13.sp)
+                } else if (errorMessage != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("⚠️", fontSize = 36.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(errorMessage ?: "Terjadi kesalahan", color = Color(0xFFDC2626), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
-                }
-            } else {
+                } else if (filteredStands.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("🏪", fontSize = 36.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Tidak ada stand yang ditemukan", color = TextSecondary, fontSize = 13.sp)
+                        }
+                    }
+                } else {
                 // Stands List
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -358,5 +389,7 @@ fun AllStandsScreen(
             }
         }
         }
+        }
     }
 }
+

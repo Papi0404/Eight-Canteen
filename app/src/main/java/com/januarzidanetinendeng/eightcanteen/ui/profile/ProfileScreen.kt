@@ -42,6 +42,10 @@ import com.januarzidanetinendeng.eightcanteen.ui.theme.TextPrimary
 import com.januarzidanetinendeng.eightcanteen.ui.theme.TextSecondary
 import kotlinx.coroutines.launch
 
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.ExperimentalMaterial3Api
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     currentName: String = "",
@@ -76,24 +80,35 @@ fun ProfileScreen(
     }
     var isClassDropdownExpanded by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
+    var isRefreshing by remember { mutableStateOf(false) }
+
+    fun refreshProfile(isPullRefresh: Boolean = false) {
+        if (isPullRefresh) isRefreshing = true
+        coroutineScope.launch {
+            repository.getMyProfile().onSuccess { res ->
+                isRefreshing = false
+                res.data?.let { profile ->
+                    val serverName = (profile.fullName ?: profile.name)?.trim()
+                    if (!serverName.isNullOrBlank() &&
+                        !serverName.equals("EMPTY", ignoreCase = true) &&
+                        !serverName.equals("Pengguna", ignoreCase = true)
+                    ) {
+                        nameInput = serverName
+                    }
+                    val serverClass = (profile.resolvedClass ?: profile.studentClass ?: profile.className)?.trim()
+                    if (!serverClass.isNullOrBlank()) {
+                        classInput = serverClass.replace(" • SMKN 8", "").trim()
+                    }
+                }
+            }.onFailure {
+                isRefreshing = false
+            }
+        }
+    }
 
     // Sinkronisasi data profil terbaru langsung dari backend jika sudah tersimpan
     LaunchedEffect(Unit) {
-        repository.getMyProfile().onSuccess { res ->
-            res.data?.let { profile ->
-                val serverName = (profile.fullName ?: profile.name)?.trim()
-                if (!serverName.isNullOrBlank() &&
-                    !serverName.equals("EMPTY", ignoreCase = true) &&
-                    !serverName.equals("Pengguna", ignoreCase = true)
-                ) {
-                    nameInput = serverName
-                }
-                val serverClass = (profile.resolvedClass ?: profile.studentClass ?: profile.className)?.trim()
-                if (!serverClass.isNullOrBlank()) {
-                    classInput = serverClass.replace(" • SMKN 8", "").trim()
-                }
-            }
-        }
+        refreshProfile(isPullRefresh = false)
     }
 
     Scaffold(
@@ -140,14 +155,20 @@ fun ProfileScreen(
             }
         }
     ) { innerPadding ->
-        Column(
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { refreshProfile(isPullRefresh = true) },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(scrollState)
-                .padding(horizontal = 20.dp, vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
             // Profile Picture Section
             Box(
                 contentAlignment = Alignment.BottomEnd,
@@ -386,6 +407,8 @@ fun ProfileScreen(
         }
     }
 }
+}
+
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable

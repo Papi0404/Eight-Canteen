@@ -52,6 +52,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -59,7 +61,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -133,6 +137,7 @@ private fun classifyMenuCategory(name: String, standCategory: String?): String {
     return if (isDrink) "Minuman" else "Makanan"
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentDashboardScreen(
     cartViewModel: CartViewModel = remember { CartViewModel() },
@@ -149,6 +154,7 @@ fun StudentDashboardScreen(
     onStandClick: (standId: String, standName: String) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
     val filterScrollState = rememberScrollState()
     val standsScrollState = rememberScrollState()
@@ -173,110 +179,122 @@ fun StudentDashboardScreen(
     var menuItems by remember { mutableStateOf<List<MenuItem>>(emptyList()) }
     var isLoadingStands by remember { mutableStateOf(true) }
     var isLoadingMenus by remember { mutableStateOf(true) }
+    var isRefreshing by remember { mutableStateOf(false) }
     val repository = remember { CanteenRepository() }
 
-    LaunchedEffect(Unit) {
-        val session = SessionManager.getInstance(context)
-        if (session.getUserName().isNotBlank() && session.getUserName() != "Pengguna") {
-            currentStudentName = session.getUserName()
-        }
-        if (!session.getStudentClass().isNullOrBlank()) {
-            currentStudentClass = session.getStudentClass() ?: ""
-        }
-        currentLoyaltyPoints = session.getPoints()
+    fun refreshAllStudentData(isPullRefresh: Boolean = false) {
+        if (isPullRefresh) isRefreshing = true
+        coroutineScope.launch {
+            try {
+                val session = SessionManager.getInstance(context)
+                if (session.getUserName().isNotBlank() && session.getUserName() != "Pengguna") {
+                    currentStudentName = session.getUserName()
+                }
+                if (!session.getStudentClass().isNullOrBlank()) {
+                    currentStudentClass = session.getStudentClass() ?: ""
+                }
+                currentLoyaltyPoints = session.getPoints()
 
-        // 1. Fetch User Profile
-        repository.getMyProfile().onSuccess { res ->
-            res.data?.let { profile ->
-                val fetchedName = (profile.fullName ?: profile.name)?.trim()
-                if (!fetchedName.isNullOrBlank() && !fetchedName.equals("EMPTY", ignoreCase = true) && !fetchedName.equals("Pengguna", ignoreCase = true)) {
-                    currentStudentName = fetchedName
-                }
-                val fetchedClass = (profile.resolvedClass ?: profile.studentClass ?: profile.className)?.trim()
-                if (!fetchedClass.isNullOrBlank()) {
-                    currentStudentClass = fetchedClass
-                }
-                session.updateProfile(name = currentStudentName, studentClass = currentStudentClass)
-                profile.points?.let {
-                    currentLoyaltyPoints = it
-                    session.updatePoints(it)
-                }
-            }
-        }
-
-        // 2. Fetch Stands
-        isLoadingStands = true
-        repository.getStands().onSuccess { res ->
-            isLoadingStands = false
-            val apiStands = res.data ?: emptyList()
-            stands = apiStands.map { stand ->
-                StandItem(
-                    id = stand.id,
-                    name = stand.name,
-                    rating = "",
-                    distanceOrTime = "${stand.counterSlot ?: "Stand"} • ${if (stand.isOpen) "Buka" else "Tutup"}",
-                    isBusy = false,
-                    foodEmoji = when {
-                        stand.name.contains("Kebab", true) -> "🥙"
-                        stand.name.contains("Ketoprak", true) -> "🍲"
-                        stand.name.contains("Ayam", true) -> "🍗"
-                        stand.name.contains("Jus", true) || stand.name.contains("Buah", true) -> "🍹"
-                        stand.name.contains("Kopi", true) || stand.name.contains("Barista", true) -> "🧋"
-                        else -> "🍱"
+                // 1. Fetch User Profile
+                repository.getMyProfile().onSuccess { res ->
+                    res.data?.let { profile ->
+                        val fetchedName = (profile.fullName ?: profile.name)?.trim()
+                        if (!fetchedName.isNullOrBlank() && !fetchedName.equals("EMPTY", ignoreCase = true) && !fetchedName.equals("Pengguna", ignoreCase = true)) {
+                            currentStudentName = fetchedName
+                        }
+                        val fetchedClass = (profile.resolvedClass ?: profile.studentClass ?: profile.className)?.trim()
+                        if (!fetchedClass.isNullOrBlank()) {
+                            currentStudentClass = fetchedClass
+                        }
+                        session.updateProfile(name = currentStudentName, studentClass = currentStudentClass)
+                        profile.points?.let {
+                            currentLoyaltyPoints = it
+                            session.updatePoints(it)
+                        }
                     }
-                )
-            }
-        }.onFailure {
-            isLoadingStands = false
-            stands = emptyList()
-        }
+                }
 
-        // 3. Fetch Menus
-        isLoadingMenus = true
-        repository.getAllMenus().onSuccess { res ->
-            isLoadingMenus = false
-            val apiMenus = res.data ?: emptyList()
-            menuItems = apiMenus.map { menu ->
-                val resolvedCategory = classifyMenuCategory(menu.name, menu.stands?.category)
-                val isAvail = menu.isAvailable && menu.stock > 0
-                MenuItem(
-                    id = menu.id,
-                    name = menu.name,
-                    standName = menu.stands?.name ?: "Stand Kantin",
-                    price = menu.price,
-                    stock = menu.stock,
-                    prepareTime = menu.prepareTime ?: "10 mnt",
-                    tag = when {
-                        !menu.isAvailable || menu.stock <= 0 -> "Tidak Tersedia"
-                        menu.stock in 1..4 -> "Tersisa ${menu.stock}"
-                        menu.stock > 10 -> "Tersedia"
-                        else -> null
-                    },
-                    tagColor = when {
-                        !menu.isAvailable || menu.stock <= 0 -> Color(0xFFFEE2E2)
-                        menu.stock in 1..4 -> Color(0xFFFEF3C7)
-                        else -> Color(0xFFDCFCE7)
-                    },
-                    foodEmoji = when {
-                        menu.name.contains("Kebab", true) -> "🥙"
-                        menu.name.contains("Ketoprak", true) -> "🍲"
-                        menu.name.contains("Ayam", true) || menu.name.contains("Geprek", true) -> "🍗"
-                        menu.name.contains("Dimsum", true) -> "🥟"
-                        menu.name.contains("Kopi", true) -> "☕"
-                        menu.name.contains("Teh", true) -> "🧋"
-                        menu.name.contains("Jus", true) -> "🍹"
-                        else -> "🍛"
-                    },
-                    standId = menu.standId ?: menu.stands?.id,
-                    category = resolvedCategory,
-                    isAvailable = isAvail,
-                    imageUrl = menu.imageUrl
-                )
+                // 2. Fetch Stands
+                isLoadingStands = true
+                repository.getStands().onSuccess { res ->
+                    isLoadingStands = false
+                    val apiStands = res.data ?: emptyList()
+                    stands = apiStands.map { stand ->
+                        StandItem(
+                            id = stand.id,
+                            name = stand.name,
+                            rating = "",
+                            distanceOrTime = "${stand.counterSlot ?: "Stand"} • ${if (stand.isOpen) "Buka" else "Tutup"}",
+                            isBusy = false,
+                            foodEmoji = when {
+                                stand.name.contains("Kebab", true) -> "🥙"
+                                stand.name.contains("Ketoprak", true) -> "🍲"
+                                stand.name.contains("Ayam", true) -> "🍗"
+                                stand.name.contains("Jus", true) || stand.name.contains("Buah", true) -> "🍹"
+                                stand.name.contains("Kopi", true) || stand.name.contains("Barista", true) -> "🧋"
+                                else -> "🍱"
+                            }
+                        )
+                    }
+                }.onFailure {
+                    isLoadingStands = false
+                    stands = emptyList()
+                }
+
+                // 3. Fetch Menus
+                isLoadingMenus = true
+                repository.getAllMenus().onSuccess { res ->
+                    isLoadingMenus = false
+                    val apiMenus = res.data ?: emptyList()
+                    menuItems = apiMenus.map { menu ->
+                        val resolvedCategory = classifyMenuCategory(menu.name, menu.stands?.category)
+                        val isAvail = menu.isAvailable && menu.stock > 0
+                        MenuItem(
+                            id = menu.id,
+                            name = menu.name,
+                            standName = menu.stands?.name ?: "Stand Kantin",
+                            price = menu.price,
+                            stock = menu.stock,
+                            prepareTime = menu.prepareTime ?: "10 mnt",
+                            tag = when {
+                                !menu.isAvailable || menu.stock <= 0 -> "Tidak Tersedia"
+                                menu.stock in 1..4 -> "Tersisa ${menu.stock}"
+                                menu.stock > 10 -> "Tersedia"
+                                else -> null
+                            },
+                            tagColor = when {
+                                !menu.isAvailable || menu.stock <= 0 -> Color(0xFFFEE2E2)
+                                menu.stock in 1..4 -> Color(0xFFFEF3C7)
+                                else -> Color(0xFFDCFCE7)
+                            },
+                            foodEmoji = when {
+                                menu.name.contains("Kebab", true) -> "🥙"
+                                menu.name.contains("Ketoprak", true) -> "🍲"
+                                menu.name.contains("Ayam", true) || menu.name.contains("Geprek", true) -> "🍗"
+                                menu.name.contains("Dimsum", true) -> "🥟"
+                                menu.name.contains("Kopi", true) -> "☕"
+                                menu.name.contains("Teh", true) -> "🧋"
+                                menu.name.contains("Jus", true) -> "🍹"
+                                else -> "🍛"
+                            },
+                            standId = menu.standId ?: menu.stands?.id,
+                            category = resolvedCategory,
+                            isAvailable = isAvail,
+                            imageUrl = menu.imageUrl
+                        )
+                    }
+                }.onFailure {
+                    isLoadingMenus = false
+                    menuItems = emptyList()
+                }
+            } finally {
+                isRefreshing = false
             }
-        }.onFailure {
-            isLoadingMenus = false
-            menuItems = emptyList()
         }
+    }
+
+    LaunchedEffect(Unit) {
+        refreshAllStudentData()
     }
 
     val displayedMenus = remember(searchQuery, selectedFilter, menuItems) {
@@ -409,12 +427,17 @@ fun StudentDashboardScreen(
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollState)
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = { refreshAllStudentData(isPullRefresh = true) },
+                    modifier = Modifier.fillMaxSize()
                 ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(scrollState)
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
                 // 1. User Greeting & Loyalty Points Header Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -931,7 +954,8 @@ fun StudentDashboardScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(80.dp))
+                    Spacer(modifier = Modifier.height(80.dp))
+                }
             }
 
             // 7. Floating Cart Bar

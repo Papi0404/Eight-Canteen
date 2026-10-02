@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.QrCode
@@ -18,6 +20,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +39,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentOrderHistoryScreen(
     onBackClick: () -> Unit = {},
@@ -49,18 +53,22 @@ fun StudentOrderHistoryScreen(
 
     var orders by remember { mutableStateOf<List<OrderResponse>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var isRefreshing by remember { mutableStateOf(false) }
     var selectedFilter by remember { mutableStateOf("Semua") }
     var orderToCancel by remember { mutableStateOf<OrderResponse?>(null) }
 
-    fun fetchOrders() {
-        isLoading = true
+    fun fetchOrders(isPullRefresh: Boolean = false) {
+        if (isPullRefresh) isRefreshing = true else isLoading = true
         coroutineScope.launch {
-            repository.getOrders().onSuccess { res ->
+            try {
+                repository.getOrders().onSuccess { res ->
+                    orders = res.data ?: emptyList()
+                }.onFailure { err ->
+                    Toast.makeText(context, "Gagal memuat pesanan: ${err.message}", Toast.LENGTH_SHORT).show()
+                }
+            } finally {
                 isLoading = false
-                orders = res.data ?: emptyList()
-            }.onFailure { err ->
-                isLoading = false
-                Toast.makeText(context, "Gagal memuat pesanan: ${err.message}", Toast.LENGTH_SHORT).show()
+                isRefreshing = false
             }
         }
     }
@@ -169,71 +177,78 @@ fun StudentOrderHistoryScreen(
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        // Content
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = BluePrimary, modifier = Modifier.size(36.dp))
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(text = "Memuat riwayat pesanan...", fontSize = 13.sp, color = TextSecondary)
-                }
-            }
-        } else if (filteredOrders.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+        // Content with Pull to Refresh
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { fetchOrders(isPullRefresh = true) },
+            modifier = Modifier.fillMaxSize()
+        ) {
+            if (isLoading && !isRefreshing) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(text = "🍽️", fontSize = 54.sp)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = if (selectedFilter == "Aktif") "Tidak Ada Pesanan Aktif" else "Belum Ada Riwayat Pesanan",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Yuk jelajahi stand kantin SMKN 8 dan pesan makanan favoritmu sekarang!",
-                        fontSize = 12.sp,
-                        color = TextSecondary,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = onOrderNewFoodClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Text(text = "Pesan Makanan", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = BluePrimary, modifier = Modifier.size(36.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(text = "Memuat riwayat pesanan...", fontSize = 13.sp, color = TextSecondary)
                     }
                 }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(filteredOrders) { order ->
-                    StudentOrderCard(
-                        order = order,
-                        onViewDetail = { onOrderClick(order.id) },
-                        onCancelClick = { orderToCancel = order }
-                    )
+            } else if (filteredOrders.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(text = "🍽️", fontSize = 54.sp)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = if (selectedFilter == "Aktif") "Tidak Ada Pesanan Aktif" else "Belum Ada Riwayat Pesanan",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Yuk jelajahi stand kantin SMKN 8 dan pesan makanan favoritmu sekarang!",
+                            fontSize = 12.sp,
+                            color = TextSecondary,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = onOrderNewFoodClick,
+                            colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Text(text = "Pesan Makanan", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
-                item {
-                    Spacer(modifier = Modifier.height(30.dp))
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(filteredOrders) { order ->
+                        StudentOrderCard(
+                            order = order,
+                            onViewDetail = { onOrderClick(order.id) },
+                            onCancelClick = { orderToCancel = order }
+                        )
+                    }
+                    item {
+                        Spacer(modifier = Modifier.height(30.dp))
+                    }
                 }
             }
         }

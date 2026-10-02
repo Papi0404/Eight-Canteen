@@ -17,11 +17,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.rotate
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -104,11 +106,8 @@ fun AdminAddStandScreen(
     var isLoading by remember { mutableStateOf(false) }
 
     val counterOptions = listOf(
-        "Stand 01 (Gedung C - Area Tengah Utama)",
-        "Stand 02 (Gedung C - Samping Koperasi)",
-        "Stand 03 (Gedung B - Samping Kantin Utama)",
-        "Stand 04 (Gedung A - Depan Lapangan)",
-        "Stand 05 (Lantai 2 Gedung C)"
+        "Stand 01", "Stand 02", "Stand 03", "Stand 04", "Stand 05",
+        "Stand 06", "Stand 07", "Stand 08", "Stand 09", "Stand 10"
     )
 
     Scaffold(
@@ -550,33 +549,51 @@ fun AdminAddStandScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Field 4: Nomor Loket / Posisi Stand
-                    Text(
-                        text = "Nomor Loket / Posisi Stand *",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Nomor Loket / Posisi Stand *",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "Bisa ketik / pilih",
+                            fontSize = 11.sp,
+                            color = BluePrimary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                     Spacer(modifier = Modifier.height(6.dp))
                     Box(modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(
                             value = counterPosition,
-                            onValueChange = {},
-                            readOnly = true,
+                            onValueChange = { counterPosition = it },
+                            placeholder = {
+                                Text(text = "Contoh: Stand 01 / 01", color = TextMuted, fontSize = 13.5.sp)
+                            },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Default.Store,
                                     contentDescription = "Position",
-                                    tint = TextSecondary,
+                                    tint = if (counterPosition.isNotBlank()) BluePrimary else TextSecondary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             },
                             trailingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDropDown,
-                                    contentDescription = "Dropdown",
-                                    tint = TextSecondary,
-                                    modifier = Modifier.size(22.dp)
-                                )
+                                IconButton(onClick = { isCounterDropdownExpanded = !isCounterDropdownExpanded }) {
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = "Pilih Nomor",
+                                        tint = BluePrimary,
+                                        modifier = Modifier
+                                            .size(26.dp)
+                                            .rotate(if (isCounterDropdownExpanded) 180f else 0f)
+                                    )
+                                }
                             },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
@@ -589,7 +606,6 @@ fun AdminAddStandScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp)
-                                .clickable { isCounterDropdownExpanded = true }
                         )
 
                         DropdownMenu(
@@ -601,7 +617,23 @@ fun AdminAddStandScreen(
                         ) {
                             counterOptions.forEach { opt ->
                                 DropdownMenuItem(
-                                    text = { Text(text = opt, fontSize = 13.sp) },
+                                    text = {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = opt,
+                                                fontSize = 13.sp,
+                                                fontWeight = if (counterPosition == opt) FontWeight.Bold else FontWeight.Medium,
+                                                color = if (counterPosition == opt) BluePrimary else TextPrimary
+                                            )
+                                            if (counterPosition == opt) {
+                                                Text(text = "✓", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
+                                            }
+                                        }
+                                    },
                                     onClick = {
                                         counterPosition = opt
                                         isCounterDropdownExpanded = false
@@ -611,10 +643,39 @@ fun AdminAddStandScreen(
                         }
                     }
 
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Pilihan Cepat Nomor Stand (Chips)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        counterOptions.forEach { opt ->
+                            val isSelected = counterPosition == opt
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) BluePrimary else BlueLightBg)
+                                    .border(1.dp, if (isSelected) BluePrimary else BorderColor, RoundedCornerShape(8.dp))
+                                    .clickable { counterPosition = opt }
+                                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                            ) {
+                                Text(
+                                    text = opt,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) Color.White else BluePrimary
+                                )
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "📍 Memudahkan siswa mencari lokasi pick-up saat jam istirahat",
+                        text = "📍 Ketik nomor sendiri atau pilih cepat nomor stand di atas",
                         fontSize = 11.sp,
                         color = TextMuted
                     )
